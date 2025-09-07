@@ -1,0 +1,30 @@
+.Chat-home-main {
+    display: flex;
+    height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
+.sidebar {
+    width: 25%;
+    background: red;
+    overflow-y: scroll;
+
+}
+
+.sidebar::-webkit-scrollbar {
+    display: none;
+    /* Hides scrollbar */
+}
+
+.chat-window {
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 75%;
+    height: 100vh;
+    /* background-image:linear-gradient(#09395D, #142532); */
+    color: white;
+}

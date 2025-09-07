@@ -1,0 +1,11 @@
+.app-container {
+  display: flex;
+  height: 100vh;
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+img{
+  aspect-ratio: 3/2;
+}
+
