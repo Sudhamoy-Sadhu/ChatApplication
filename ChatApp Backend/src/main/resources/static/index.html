@@ -1,12 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Chat App - Group & Private</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 10px; }
-    #chat, #privateChat {
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 10px;
+    }
+
+    #chat,
+    #privateChat {
       border: 1px solid #ccc;
       padding: 10px;
       height: 250px;
@@ -14,92 +22,149 @@
       margin-bottom: 10px;
       background: #fafafa;
     }
-    input, button { padding: 8px; margin: 5px 0; }
-    .message { margin: 5px 0; }
-    .system { font-style: italic; color: gray; }
-    .private { color: darkred; font-style: italic; }
+
+    input,
+    button {
+      padding: 8px;
+      margin: 5px 0;
+    }
+
+    .message {
+      margin: 5px 0;
+    }
+
+    .system {
+      font-style: italic;
+      color: gray;
+    }
+
+    .private {
+      color: darkred;
+      font-style: italic;
+    }
+
+    #loginDiv {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #f0f0f0;
+    }
   </style>
 </head>
+
 <body>
   <h2>Welcome to Chat App</h2>
 
-  <div>
-    <strong>Your username:</strong> <span id="usernameDisplay"></span>
+  <div id="loginDiv">
+    <h3>Login</h3>
+    <input type="text" id="loginEmail" placeholder="Email" style="width: 40%;" /><br />
+    <input type="password" id="loginPassword" placeholder="Password" style="width: 40%;" /><br />
+    <button onclick="login()">Login</button>
   </div>
 
-  <h3>Group Chat (Room: <span id="roomIdDisplay"></span>)</h3>
-  <div id="chat"></div>
-  <input type="text" id="groupMessage" placeholder="Type group message..." style="width: 80%;" />
-  <button onclick="sendGroupMessage()">Send Group</button>
-  <button onclick="leaveRoom()">Leave Room</button>
+  <div id="chatDiv" style="display:none;">
+    <div>
+      <strong>Your username:</strong> <span id="usernameDisplay"></span>
+    </div>
 
-  <h3>Private Chat</h3>
-  <input type="text" id="privateRecipient" placeholder="Recipient username" style="width: 40%;" />
-  <input type="text" id="privateMessage" placeholder="Type private message..." style="width: 35%;" />
-  <button onclick="sendPrivateMessage()">Send Private</button>
-  <div id="privateChat"></div>
+    <h3>Group Chat (Room: <span id="roomIdDisplay"></span>)</h3>
+    <div id="chat"></div>
+    <input type="text" id="groupMessage" placeholder="Type group message..." style="width: 80%;" />
+    <button onclick="sendGroupMessage()">Send Group</button>
+    <button onclick="leaveRoom()">Leave Room</button>
+
+    <h3>Private Chat</h3>
+    <input type="text" id="privateRecipient" placeholder="Recipient username" style="width: 40%;" />
+    <input type="text" id="privateMessage" placeholder="Type private message..." style="width: 35%;" />
+    <button onclick="sendPrivateMessage()">Send Private</button>
+    <div id="privateChat"></div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client/dist/sockjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
   <script>
-    let username = prompt("Enter your username:");
-    if (!username) {
-      alert("Username is required!");
-      throw new Error("Username required");
+    let stompClient = null;
+    let accessToken = null;
+    const roomId = "general";
+
+    function login() {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+
+      if (!email || !password) {
+        alert("Email and password required!");
+        return;
+      }
+
+      // Call backend login API to get JWT
+      fetch("http://localhost:8080/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("Login failed");
+          return res.json();
+        })
+        .then(data => {
+          accessToken = data.access;      // access token
+          const username = data.username;  // get username from backend
+          startChat(username);             // use it in chat UI
+        })
+        .catch(err => alert(err.message));
     }
-    document.getElementById("usernameDisplay").textContent = username;
 
-    const roomId = "general"; // Your room id
-    document.getElementById("roomIdDisplay").textContent = roomId;
+    function startChat(username) {
+      document.getElementById("loginDiv").style.display = "none";
+      document.getElementById("chatDiv").style.display = "block";
+      document.getElementById("usernameDisplay").textContent = username;
+      document.getElementById("roomIdDisplay").textContent = roomId;
 
-    const socket = new SockJS(`http://localhost:8080/ws?username=${username}`);
-    const stompClient = Stomp.over(socket);
+      // Connect to WebSocket with JWT in headers
+      const socket = new SockJS("http://localhost:8080/ws");
+      stompClient = Stomp.over(socket);
 
-    stompClient.connect({}, function (frame) {
-      console.log("Connected: " + frame);
+      stompClient.connect(
+        { Authorization: `Bearer ${accessToken}` },
+        function (frame) {
+          console.log("Connected:", frame);
 
-      // Subscribe to group room topic
-      stompClient.subscribe(`/topic/room/${roomId}`, function (message) {
-        const msg = JSON.parse(message.body);
-        showGroupMessage(msg);
-      });
+          // Subscribe to group topic
+          stompClient.subscribe(`/topic/room/${roomId}`, function (message) {
+            const msg = JSON.parse(message.body);
+            showGroupMessage(msg);
+          });
 
-      // Subscribe to user private queue
-      stompClient.subscribe("/user/queue/messages", function (message) {
-        const msg = JSON.parse(message.body);
-        showPrivateMessage(msg);
-      });
+          // Subscribe to private messages
+          stompClient.subscribe("/user/queue/messages", function (message) {
+            const msg = JSON.parse(message.body);
+            showPrivateMessage(msg);
+          });
 
-      // Members list or errors (optional)
-      stompClient.subscribe("/user/queue/members", function (message) {
-        console.log("Members list:", message.body);
-      });
-      stompClient.subscribe("/user/queue/errors", function (message) {
-        alert("Error: " + message.body);
-      });
+          // Notify backend you joined
+          stompClient.send(`/app/chat.join/${roomId}`, {}, {});
+        },
+        function (err) {
+          console.error("STOMP error:", err);
+          alert("WebSocket connection failed");
+        }
+      );
+    }
 
-      // Notify backend you joined the room
-      stompClient.send(`/app/chat.join/${roomId}`, {}, {});
-    });
-
-    // Display group chat messages
     function showGroupMessage(msg) {
       const chat = document.getElementById("chat");
       let p = document.createElement("p");
       p.className = "message";
-
       if (msg.type === "JOIN" || msg.type === "LEAVE") {
         p.className += " system";
         p.textContent = msg.content;
       } else {
         p.innerHTML = `<b>${msg.sender}</b>: ${msg.content}`;
       }
-
       chat.appendChild(p);
       chat.scrollTop = chat.scrollHeight;
     }
 
-    // Display private chat messages
     function showPrivateMessage(msg) {
       const privateChat = document.getElementById("privateChat");
       let p = document.createElement("p");
@@ -109,55 +174,30 @@
       privateChat.scrollTop = privateChat.scrollHeight;
     }
 
-    // Send group message
     function sendGroupMessage() {
       const input = document.getElementById("groupMessage");
-      if (input.value.trim() === "") return;
-
-      stompClient.send(`/app/chat.send/${roomId}`, {}, JSON.stringify({
-        content: input.value
-      }));
-
+      if (!input.value.trim()) return;
+      stompClient.send(`/app/chat.send/${roomId}`, {}, JSON.stringify({ content: input.value }));
       input.value = "";
     }
 
-    // Send private message
     function sendPrivateMessage() {
-      const recipientInput = document.getElementById("privateRecipient");
-      const messageInput = document.getElementById("privateMessage");
-      if (recipientInput.value.trim() === "" || messageInput.value.trim() === "") return;
-
-      stompClient.send(`/app/chat.private`, {}, JSON.stringify({
-        recipient: recipientInput.value,
-        content: messageInput.value
-      }));
-
-      messageInput.value = "";
+      const recipient = document.getElementById("privateRecipient").value;
+      const content = document.getElementById("privateMessage").value;
+      if (!recipient.trim() || !content.trim()) return;
+      stompClient.send(`/app/chat.private`, {}, JSON.stringify({ recipient, content }));
+      document.getElementById("privateMessage").value = "";
     }
 
-    // Leave room
     function leaveRoom() {
       stompClient.send(`/app/chat.leave/${roomId}`, {}, {});
       alert("You left the room.");
-      // Optionally disconnect:
-      // stompClient.disconnect();
     }
 
-    // Send on Enter key for group message
-    document.getElementById("groupMessage").addEventListener("keydown", function (event) {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        sendGroupMessage();
-      }
-    });
-
-    // Send on Enter key for private message
-    document.getElementById("privateMessage").addEventListener("keydown", function (event) {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        sendPrivateMessage();
-      }
-    });
+    // Send on Enter key
+    document.getElementById("groupMessage").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); sendGroupMessage(); } });
+    document.getElementById("privateMessage").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); sendPrivateMessage(); } });
   </script>
 </body>
+
 </html>

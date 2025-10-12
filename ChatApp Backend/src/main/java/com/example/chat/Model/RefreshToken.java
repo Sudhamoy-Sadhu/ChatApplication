@@ -29,7 +29,8 @@ public class RefreshToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "token_id")
+    private Long tokenId; // Primary key
 
     // hashed jti
     @Column(name = "token_hash", nullable = false, unique = true)

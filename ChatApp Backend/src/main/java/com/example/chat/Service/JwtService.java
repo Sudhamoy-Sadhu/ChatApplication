@@ -278,7 +278,8 @@ public class JwtService {
     public LoginResponseDTO loginUser(User user) {
         String access = createAccessToken(user, Set.of("USER"));
         String refresh = createRefreshToken(user);
-        return new LoginResponseDTO(access, refresh);
+        String username = user.getUsername();
+        return new LoginResponseDTO(access, refresh, username);
     }
 
 }

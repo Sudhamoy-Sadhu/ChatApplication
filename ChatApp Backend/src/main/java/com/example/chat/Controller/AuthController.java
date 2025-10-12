@@ -18,6 +18,7 @@ import com.example.chat.Repository.SignUpRepo;
 
 @RestController
 @RequestMapping("/auth")
+@CrossOrigin(origins = "http://127.0.0.1:5500")
 public class AuthController {
 
     private final SignUpRepo signUpRepo;
