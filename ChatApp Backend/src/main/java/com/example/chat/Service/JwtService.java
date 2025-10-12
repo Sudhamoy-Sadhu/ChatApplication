@@ -6,12 +6,14 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
+import com.example.chat.DTO.LoginResponseDTO;
 import com.example.chat.Model.RefreshToken;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.RefreshTokenRepository;
@@ -38,12 +40,12 @@ public class JwtService {
     private final String jtiHmacSecret;
 
     public JwtService(@Value("${security.jwt.private-key-path}") Resource priv,
-                      @Value("${security.jwt.public-key-path}") Resource pub,
-                      @Value("${security.jwt.access-ttl}") java.time.Duration accessTtl,
-                      @Value("${security.jwt.refresh-ttl}") java.time.Duration refreshTtl,
-                      @Value("${security.jwt.issuer}") String issuer,
-                      @Value("${security.jwt.jti-hmac-secret}") String jtiHmacSecret,
-                      RefreshTokenRepository refreshTokenRepository) throws Exception {
+            @Value("${security.jwt.public-key-path}") Resource pub,
+            @Value("${security.jwt.access-ttl}") java.time.Duration accessTtl,
+            @Value("${security.jwt.refresh-ttl}") java.time.Duration refreshTtl,
+            @Value("${security.jwt.issuer}") String issuer,
+            @Value("${security.jwt.jti-hmac-secret}") String jtiHmacSecret,
+            RefreshTokenRepository refreshTokenRepository) throws Exception {
 
         var key = PemUtils.readPrivateKey(priv.getInputStream());
         if (!(key instanceof RSAPrivateKey)) {
@@ -86,7 +88,8 @@ public class JwtService {
     }
 
     /**
-     * Creates a refresh token, stores its hashed jti in DB and returns the serialized token.
+     * Creates a refresh token, stores its hashed jti in DB and returns the
+     * serialized token.
      * Caller should return both access token and refresh token to the client.
      */
     public String createRefreshToken(User user) {
@@ -102,7 +105,8 @@ public class JwtService {
                 .claim("typ", "refresh")
                 .build();
 
-        SignedJWT signed = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).type(JOSEObjectType.JWT).build(), claims);
+        SignedJWT signed = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).type(JOSEObjectType.JWT).build(),
+                claims);
         try {
             signed.sign(new RSASSASigner(privateKey));
         } catch (Exception e) {
@@ -132,14 +136,17 @@ public class JwtService {
 
             // verify signature
             JWSVerifier verifier = new RSASSAVerifier(publicKey);
-            if (!jwt.verify(verifier)) return false;
+            if (!jwt.verify(verifier))
+                return false;
 
             JWTClaimsSet claims = jwt.getJWTClaimsSet();
 
-            if (!issuer.equals(claims.getIssuer())) return false;
+            if (!issuer.equals(claims.getIssuer()))
+                return false;
             if (claims.getExpirationTime() == null || claims.getExpirationTime().toInstant().isBefore(Instant.now()))
                 return false;
-            if (!"refresh".equals(claims.getStringClaim("typ"))) return false;
+            if (!"refresh".equals(claims.getStringClaim("typ")))
+                return false;
 
             String jti = claims.getJWTID();
             String hash = TokenHashUtil.hmacSha256Hex(jtiHmacSecret, jti);
@@ -152,7 +159,8 @@ public class JwtService {
     }
 
     /**
-     * Rotates refresh token: checks provided refresh token, marks old DB row inactive,
+     * Rotates refresh token: checks provided refresh token, marks old DB row
+     * inactive,
      * issues new refresh token and DB row, returns new token string.
      * Throws RuntimeException for invalid token.
      */
@@ -162,13 +170,16 @@ public class JwtService {
 
             // verify signature
             JWSVerifier verifier = new RSASSAVerifier(publicKey);
-            if (!jwt.verify(verifier)) throw new RuntimeException("Invalid refresh token signature");
+            if (!jwt.verify(verifier))
+                throw new RuntimeException("Invalid refresh token signature");
 
             JWTClaimsSet claims = jwt.getJWTClaimsSet();
-            if (!issuer.equals(claims.getIssuer())) throw new RuntimeException("Invalid issuer");
+            if (!issuer.equals(claims.getIssuer()))
+                throw new RuntimeException("Invalid issuer");
             if (claims.getExpirationTime() == null || claims.getExpirationTime().toInstant().isBefore(Instant.now()))
                 throw new RuntimeException("Refresh token expired");
-            if (!"refresh".equals(claims.getStringClaim("typ"))) throw new RuntimeException("Not a refresh token");
+            if (!"refresh".equals(claims.getStringClaim("typ")))
+                throw new RuntimeException("Not a refresh token");
 
             String jti = claims.getJWTID();
             String hash = TokenHashUtil.hmacSha256Hex(jtiHmacSecret, jti);
@@ -208,4 +219,66 @@ public class JwtService {
         } catch (Exception ignored) {
         }
     }
+
+    // Validate an access token signature, issuer and expiry
+    public boolean validateAccessToken(String token) {
+        try {
+            SignedJWT jwt = SignedJWT.parse(token);
+            JWSVerifier verifier = new RSASSAVerifier(publicKey);
+            if (!jwt.verify(verifier))
+                return false;
+
+            JWTClaimsSet claims = jwt.getJWTClaimsSet();
+            if (!issuer.equals(claims.getIssuer()))
+                return false;
+            if (claims.getExpirationTime() == null || claims.getExpirationTime().toInstant().isBefore(Instant.now()))
+                return false;
+
+            // you might also check token type claim if you set one for access tokens
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // Extract subject (user id) from any valid JWT token (returns null if invalid)
+    public String extractUsername(String token) {
+        try {
+            SignedJWT jwt = SignedJWT.parse(token);
+            // optionally verify signature here too:
+            JWSVerifier verifier = new RSASSAVerifier(publicKey);
+            if (!jwt.verify(verifier))
+                return null;
+            JWTClaimsSet claims = jwt.getJWTClaimsSet();
+            return claims.getSubject();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Extract roles claim (if present) as collection of strings
+    @SuppressWarnings("unchecked")
+    public Collection<String> extractRoles(String token) {
+        try {
+            SignedJWT jwt = SignedJWT.parse(token);
+            JWSVerifier verifier = new RSASSAVerifier(publicKey);
+            if (!jwt.verify(verifier))
+                return java.util.Collections.emptyList();
+            JWTClaimsSet claims = jwt.getJWTClaimsSet();
+            Object rolesClaim = claims.getClaim("roles");
+            if (rolesClaim instanceof Collection) {
+                return (Collection<String>) rolesClaim;
+            }
+            return java.util.Collections.emptyList();
+        } catch (Exception e) {
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    public LoginResponseDTO loginUser(User user) {
+        String access = createAccessToken(user, Set.of("USER"));
+        String refresh = createRefreshToken(user);
+        return new LoginResponseDTO(access, refresh);
+    }
+
 }

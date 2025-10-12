@@ -4,6 +4,7 @@ import com.example.chat.Model.User;
 
 import com.example.chat.Service.JwtService;
 
+import jakarta.validation.Valid;
 import lombok.Data;
 
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
 
+import com.example.chat.DTO.LoginRequestDTO;
 import com.example.chat.Repository.SignUpRepo;
 
 @RestController
@@ -29,26 +31,27 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest req) {
-        var userOpt = signUpRepo.findByUsername(req.getUsername());
-        if (userOpt.isEmpty()) return ResponseEntity.status(401).body("Invalid credentials");
+    public ResponseEntity<?> login(@RequestBody @Valid LoginRequestDTO req) {
+        var userOpt = signUpRepo.findByEmail(req.getEmail());
+        if (userOpt.isEmpty())
+            return ResponseEntity.status(401).body("Invalid credentials");
+
         User user = userOpt.get();
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             return ResponseEntity.status(401).body("Invalid credentials");
         }
 
-        String access = jwtService.createAccessToken(user, Set.of("USER")); // adjust roles
-        String refresh = jwtService.createRefreshToken(user);
-
-        return ResponseEntity.ok(new LoginResponse(access, refresh));
+        return ResponseEntity.ok(jwtService.loginUser(user));
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(@RequestBody RefreshRequest req) {
         try {
             String newRefresh = jwtService.rotateRefreshToken(req.getRefreshToken());
-            // find the subject from the newRefresh? Simpler: parse old token to get user id and create new access for that user
-            // but we can deduce user from DB lookup before rotation if needed. We'll parse old token:
+            // find the subject from the newRefresh? Simpler: parse old token to get user id
+            // and create new access for that user
+            // but we can deduce user from DB lookup before rotation if needed. We'll parse
+            // old token:
             var jwt = com.nimbusds.jwt.SignedJWT.parse(req.getRefreshToken());
             String subject = jwt.getJWTClaimsSet().getSubject();
             // You must load user by id

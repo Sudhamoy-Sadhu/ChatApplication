@@ -21,7 +21,7 @@ public class SignUpDTO {
     private String email;
     
     @NotBlank(message = "Password is required")
-    @jakarta.validation.constraints.Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$", message = "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character")
+    @jakarta.validation.constraints.Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#])[A-Za-z\\d@$!%*?&#]{8,}$", message = "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character")
     private String password;
     
     @NotBlank(message = "Confirm Password should not be empty")
