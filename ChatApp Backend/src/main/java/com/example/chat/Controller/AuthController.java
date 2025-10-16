@@ -24,7 +24,7 @@ import lombok.Data;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "${cors.allowed-origins}")
 public class AuthController {
 
     private final SignUpRepo signUpRepo;

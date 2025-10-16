@@ -18,7 +18,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/signUp")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "${cors.allowed-origins}")
 public class SignUpController {
     
     @Autowired

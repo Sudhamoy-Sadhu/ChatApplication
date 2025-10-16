@@ -15,7 +15,7 @@ export default function ChatList() {
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get("http://localhost:8080/api/contacts");
+        const response = await axios.get("http://localhost:8080/contacts/allcontacts");
         setContacts(response.data);
       } catch (err) {
         console.error("Failed to fetch contacts:", err);
