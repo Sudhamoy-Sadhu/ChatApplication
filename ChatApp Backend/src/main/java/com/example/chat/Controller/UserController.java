@@ -27,8 +27,12 @@ public class UserController {
 
     @GetMapping("/search")
     public ResponseEntity<List<UserSearchDTO>> searchUsers(@RequestParam("query") String query) {
-        List<UserSearchDTO> users = userService.searchByUsernameOrEmail(query);
-        return ResponseEntity.ok(users);
+        try {
+            List<UserSearchDTO> users = userService.searchByUsernameOrEmail(query);
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
     // -----------------------------
