@@ -1,24 +1,30 @@
 package com.example.chat.Controller;
 
-import com.example.chat.Model.User;
+import java.util.Map;
+import java.util.Set;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.chat.DTO.LoginRequestDTO;
+import com.example.chat.Model.User;
+import com.example.chat.Repository.SignUpRepo;
 import com.example.chat.Service.JwtService;
 
 import jakarta.validation.Valid;
 import lombok.Data;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Set;
-
-import com.example.chat.DTO.LoginRequestDTO;
-import com.example.chat.Repository.SignUpRepo;
-
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "http://127.0.0.1:5500")
+@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final SignUpRepo signUpRepo;
@@ -68,6 +74,21 @@ public class AuthController {
     public ResponseEntity<?> logout(@RequestBody RefreshRequest req) {
         jwtService.revokeRefreshToken(req.getRefreshToken());
         return ResponseEntity.ok("Logged out");
+    }
+
+    @GetMapping("/validate")
+    public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.substring(7); // Remove "Bearer "
+            String username = jwtService.extractUsername(token);
+
+            if (username != null && jwtService.validateAccessToken(token)) {
+                return ResponseEntity.ok().body(Map.of("valid", true));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("valid", false));
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("valid", false));
     }
 
     @Data

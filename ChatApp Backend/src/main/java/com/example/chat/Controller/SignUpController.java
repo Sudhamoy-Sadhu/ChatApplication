@@ -3,7 +3,7 @@ package com.example.chat.Controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException; // ✅ correct import
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,7 +28,7 @@ public class SignUpController {
     public ResponseEntity<String> register(@Valid @RequestBody SignUpDTO dto) {
         try {
             signUpService.registerUser(dto);
-            return ResponseEntity.ok("User Registered Successfully!");
+            return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
