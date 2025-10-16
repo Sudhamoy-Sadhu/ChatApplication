@@ -52,10 +52,4 @@ public class UserService {
         userRepo.save(user);
     }
 
-
-    public List<UserSearchDTO> searchByUsernameOrEmail(String query) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'searchByUsernameOrEmail'");
-    }
-
 }

@@ -19,7 +19,7 @@ public class Contact {
 
     // The owner of the contact list (e.g., current user)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
     // The contact (the friend)
