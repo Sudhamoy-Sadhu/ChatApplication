@@ -4,18 +4,24 @@ import "./ChatList.css";
 import { ChatContext } from "../ContextAPI/ChatContext";
 
 export default function ChatList() {
-  const { setSelectedContact } = useContext(ChatContext);
+  const {
+    selectedContact,
+    setSelectedContact,
+    searchResults,
+    searchQuery
+  } = useContext(ChatContext);
+
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
 
+  // Fetch user contacts
   useEffect(() => {
     const fetchContacts = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get("http://localhost:8080/contacts/allcontacts");
+        const response = await axios.get("http://localhost:8080/contacts/allContacts");
         setContacts(response.data);
       } catch (err) {
         console.error("Failed to fetch contacts:", err);
@@ -24,65 +30,72 @@ export default function ChatList() {
         setLoading(false);
       }
     };
-
     fetchContacts();
   }, []);
+
+  // Handle connection / invite
+  const sendRequest = async (userId) => {
+    try {
+      await axios.post(`http://localhost:8080/contacts/request`, { userId });
+      alert("Connection request sent!");
+    } catch (err) {
+      if (err.response?.status === 404) {
+        await axios.post(`http://localhost:8080/invite`, { userId });
+        alert("Invitation sent via email!");
+      } else {
+        console.error(err);
+      }
+    }
+  };
 
   if (loading) return <div className="chat-list-loading">Loading contacts...</div>;
   if (error) return <div className="chat-list-error">{error}</div>;
 
-  if (!contacts || contacts.length === 0) {
+  // Decide which list to show: search results or contacts
+  const displayList = searchQuery ? searchResults : contacts;
+
+  if (!displayList || displayList.length === 0) {
     return (
       <div className="empty-chat-list">
-        <h3>Start connecting with friends and family 👋</h3>
-        <p>Find people to chat with and build your circle.</p>
-        <button className="find-people-btn" onClick={() => setShowModal(true)}>
-          Find People
-        </button>
-
-        {showModal && (
-          <div className="modal-overlay" onClick={() => setShowModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <h3>Find People</h3>
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                className="search-input"
-              />
-              <div className="modal-actions">
-                <button onClick={() => setShowModal(false)} className="close-btn">
-                  Close
-                </button>
-                <button className="search-btn">Search</button>
-              </div>
-            </div>
-          </div>
-        )}
+        <h3>{searchQuery ? "No users found!" : "Start connecting with friends!"}</h3>
+        <p>{searchQuery ? "Try searching with a different name or email." : "Find people to chat with and build your circle."}</p>
+        <p>{searchQuery ? "" : "Search with email for existing users or sent an invite!👋"}</p>
       </div>
     );
   }
 
   return (
     <div className="chat-list">
-      {contacts.map((c) => (
-        <div key={c.id} className="chat-item" onClick={() => setSelectedContact(c)}>
-          <div className="avatar">
-            <img src={c.pic || "/default-avatar.png"} alt={c.name} />
-          </div>
-          <div className="chat-info">
-            <div className="details">
-              <h4>{c.name}</h4>
-              <p>{c.lastMessage}</p>
+      {displayList.map((user) => {
+        // Check if this user is already a contact
+        const isContact = contacts.some((c) => c.id === user.id);
+
+        return (
+          <div key={user.id} className="chat-item" onClick={() => isContact && setSelectedContact(user)}>
+            <div className="avatar">
+              <img src={user.profileImageUrl || "/default-avatar.png"} alt={user.username || user.name} />
             </div>
-            <span>
-              {new Date(c.lastMessageTime).toLocaleTimeString("en-GB", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
+            <div className="chat-info">
+              <div className="details">
+                <h4>{user.username || user.name}</h4>
+                <p>{isContact ? user.lastMessage || "Say hi!" : user.email}</p>
+              </div>
+              {!isContact && (
+                <button className="connect-btn" onClick={() => sendRequest(user.id)}>
+                  {user.exists ? "Connect" : "Invite"}
+                </button>
+              )}
+              {isContact && (
+                <span>
+                  {user.lastMessageTime
+                    ? new Date(user.lastMessageTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                    : ""}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

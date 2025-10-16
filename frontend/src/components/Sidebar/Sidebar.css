@@ -57,3 +57,10 @@
     box-shadow: none;
   }
 }
+
+.search-icon{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: black;
+}

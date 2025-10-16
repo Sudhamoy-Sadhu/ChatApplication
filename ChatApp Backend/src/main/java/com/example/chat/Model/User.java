@@ -9,6 +9,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -47,6 +48,10 @@ public class User {
     private Instant createdAt = Instant.now();
 
     private Instant updatedAt;
+
+    @Lob
+    @Column(name = "profile_picture")
+    private byte[] profilePicture;
 
     public enum Status {
         ACTIVE,

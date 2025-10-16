@@ -8,8 +8,9 @@
 
 .sidebar {
     width: 25%;
-    background: red;
+    background-image: linear-gradient(#09395D, #142532);
     overflow-y: scroll;
+    color: white;
 
 }
 
