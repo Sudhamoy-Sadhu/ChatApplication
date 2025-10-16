@@ -3,6 +3,7 @@ package com.example.chat.Service;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Optional;
@@ -279,7 +280,13 @@ public class JwtService {
         String access = createAccessToken(user, Set.of("USER"));
         String refresh = createRefreshToken(user);
         String username = user.getUsername();
-        return new LoginResponseDTO(access, refresh, username);
+        String email = user.getEmail();
+        String status = user.getStatus().name();
+        var createdAt = user.getCreatedAt() != null ? 
+                LocalDateTime.ofInstant(user.getCreatedAt(), java.time.ZoneOffset.UTC) : null;
+        var updatedAt = user.getUpdatedAt() != null ? 
+                LocalDateTime.ofInstant(user.getUpdatedAt(), java.time.ZoneOffset.UTC) : null;
+        return new LoginResponseDTO(access, refresh, username, email, status, createdAt, updatedAt);
     }
 
 }

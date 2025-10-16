@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.example.chat.DTO.SignUpDTO;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.SignUpRepo;
@@ -39,5 +38,4 @@ public class SignUpService {
 
         signUpRepo.save(user);
     }
-
 }

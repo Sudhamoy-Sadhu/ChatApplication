@@ -91,12 +91,12 @@ const LoginSignupPage = () => {
                     password: formData.password
                 });
 
-                const { accessToken, refreshToken } = response.data;
+                const { accessToken, refreshToken, username, email, status } = response.data;
 
-                login(accessToken, refreshToken);
+                login(accessToken, refreshToken, { username, email, status });
 
                 toast.success('✅ Login successful!', { autoClose: 1500 });
-                setFormData({ email: '', password: '', confirmPassword: '', username: '' });
+                setFormData({ email: '', password: ''});
                 setTimeout(() => navigate('/'), 1800);
             } else {
                 try {
@@ -205,7 +205,7 @@ const LoginSignupPage = () => {
                                             <input
                                                 type="text"
                                                 name="username"
-                                                placeholder="Full Name"
+                                                placeholder="Username"
                                                 value={formData.username}
                                                 onChange={handleInputChange}
                                                 className="form-input"
