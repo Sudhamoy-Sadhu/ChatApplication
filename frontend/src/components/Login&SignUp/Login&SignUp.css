@@ -89,8 +89,8 @@
 .form-input {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.404);
   border-radius: 0.5rem;
   color: white;
   font-size: 1rem;
@@ -146,6 +146,29 @@
 .submit-btn:hover {
   background: linear-gradient(90deg, #9333ea 0%, #db2777 100%);
   transform: scale(1.05);
+}
+
+.forgot-password-container{
+  display: flex;
+  justify-content: end;
+  align-items: end;
+  border: none;
+  background: none;
+  height: 1.3rem;
+  box-sizing: border-box;
+}
+
+.forgot-password-link{
+  background: none;
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  color: white;
+  &:hover{
+    text-decoration: underline;
+  }
 }
 
 .divider {

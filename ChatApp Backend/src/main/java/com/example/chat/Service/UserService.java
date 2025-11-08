@@ -5,12 +5,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.chat.DTO.ForgotPassDTO;
 import com.example.chat.DTO.UserSearchDTO;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.UserRepo;
+
+import jakarta.validation.Valid;
 
 @Service
 public class UserService {
@@ -18,18 +22,19 @@ public class UserService {
     @Autowired
     private UserRepo userRepo;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     public List<UserSearchDTO> searchUsers(String query) {
         List<User> users = userRepo.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query);
 
         return users.stream()
                 .map(user -> new UserSearchDTO(
-                user.getUsername(),
-                user.getEmail(),
-                user.getProfilePicture()
-        ))
+                        user.getUsername(),
+                        user.getEmail(),
+                        user.getProfilePicture()))
                 .collect(Collectors.toList());
     }
-    
 
     public void updateProfilePicture(Long userId, MultipartFile file) throws IOException {
         // 1. Check file size
@@ -49,6 +54,18 @@ public class UserService {
 
         // 4. Save image as byte array
         user.setProfilePicture(file.getBytes());
+        userRepo.save(user);
+    }
+
+    public void changePassword(@Valid ForgotPassDTO forgotPassDTO, String email) {
+        if (!forgotPassDTO.getNewPassword().equals(forgotPassDTO.getConfirmnewPass())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
+
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        user.setPassword(passwordEncoder.encode(forgotPassDTO.getNewPassword()));
         userRepo.save(user);
     }
 

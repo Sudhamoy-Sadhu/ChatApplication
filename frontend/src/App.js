@@ -4,6 +4,7 @@ import "./App.css";
 import ChatHome from "./components/ChatHome/ChatHome";
 import LoginandSignUp from "./components/Login&SignUp/Login&SignUp";
 import ProtectedRoute from "./components/ProtectedRoutes/ProtectedRoutes";
+import ForgotPassword from "./components/ForgotPassword/ForgotPassword";
 
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<LoginandSignUp />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/" element={<ProtectedRoute><ChatHome /></ProtectedRoute>} />
       </Routes>
     </Router>
