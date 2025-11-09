@@ -22,5 +22,5 @@ public class ForgotPassDTO {
     private String newPassword;
 
     @NotBlank(message = "Confirm Password should not be empty")
-    private String ConfirmnewPass;
+    private String confirmNewPass;
 }

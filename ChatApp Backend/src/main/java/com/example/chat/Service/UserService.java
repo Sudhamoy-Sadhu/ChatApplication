@@ -25,6 +25,9 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private OtpService otpService;
+
     public List<UserSearchDTO> searchUsers(String query) {
         List<User> users = userRepo.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query);
 
@@ -58,7 +61,10 @@ public class UserService {
     }
 
     public void changePassword(@Valid ForgotPassDTO forgotPassDTO, String email) {
-        if (!forgotPassDTO.getNewPassword().equals(forgotPassDTO.getConfirmnewPass())) {
+        if (!otpService.verifyOtp(email, forgotPassDTO.getOtp())) {
+            throw new IllegalArgumentException("Invalid or expired OTP");
+        }
+        if (!forgotPassDTO.getNewPassword().equals(forgotPassDTO.getConfirmNewPass())) {
             throw new IllegalArgumentException("Passwords do not match");
         }
 

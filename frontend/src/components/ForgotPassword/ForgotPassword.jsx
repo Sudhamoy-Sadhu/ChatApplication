@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import "./ForgotPassword.css";
 import { toast } from "react-toastify";
+import axios from "axios";
+import { useNavigate } from 'react-router-dom';
 
 export default function ForgotPassword() {
   const [formData, setFormData] = useState({
@@ -9,6 +11,9 @@ export default function ForgotPassword() {
     newPassword: "",
     confirmNewPass: "",
   });
+  const [otpSent, setOtpSent] = useState(false);
+
+  const navigate = useNavigate();
 
   const isFormValid = (e) => {
     if (
@@ -18,7 +23,7 @@ export default function ForgotPassword() {
       formData.confirmNewPass.trim() !== ""
     ) {
       return true;
-    }
+    } else return false;
   };
 
   const handleChange = (e) => {
@@ -30,13 +35,31 @@ export default function ForgotPassword() {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
 
     if (!formData.email.trim()) {
       toast.error("Email is required");
       return;
     }
+
+    try {
+      const response = await axios.post(
+        "http://localhost:8080/forgot-password/get-otp",
+        { email: formData.email }
+      );
+      toast.success("📨 OTP sent successfully to your email!");
+      console.log("OTP Response:", response.data);
+      setOtpSent(true);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to send OTP");
+      console.error("Error sending OTP:", error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
     if (!/^\d{6}$/.test(formData.otp)) {
       toast.error("OTP must be exactly 6 digits");
       return;
@@ -50,8 +73,27 @@ export default function ForgotPassword() {
       toast.error("Passwords do not match");
       return;
     }
-    toast.success("✅ Password changed successfully!");
+    try {
+      const response = await axios.post(
+        "http://localhost:8080/forgot-password/change-password",
+        {
+          email: formData.email,
+          otp: formData.otp,
+          newPassword: formData.newPassword,
+          confirmNewPass: formData.confirmNewPass,
+        }
+      );
+      toast.success("Password Changed Successfully!");
+      console.log("Change Password Response:", response.data);
+      setOtpSent(false);
+      setFormData({ email: "", otp: "", newPassword: "", confirmNewPass: "" });
+      navigate("/");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to change password");
+      console.error("Error changing password:", error);
+    }
   };
+
   return (
     <>
       <div className="Forgot-pass-main">
@@ -69,36 +111,43 @@ export default function ForgotPassword() {
               />
               <button
                 className="get-otp"
-                onClick={() => toast.info("📨 OTP sent to your email")}
+                onClick={handleSendOtp}
               >
                 Get OTP
               </button>
             </div>
-            <input
-              type="number"
-              name="otp"
-              placeholder="Enter OTP"
-              value={formData.otp}
-              onChange={handleChange}
-              required
-            />
-            <input
-              type="password"
-              name="newPassword"
-              placeholder="Enter new password"
-              value={formData.newPassword}
-              onChange={handleChange}
-              required
-            />
-            <input
-              type="password"
-              name="confirmNewPass"
-              placeholder="Confirm new password"
-              value={formData.confirmNewPass}
-              onChange={handleChange}
-              required
-            />
-            <button className="change-pass" disabled={!isFormValid()}>Change Password</button>
+
+            {otpSent && (
+              <>
+                <input
+                  type="number"
+                  name="otp"
+                  placeholder="Enter OTP"
+                  value={formData.otp}
+                  onChange={handleChange}
+                  required
+                />
+                <input
+                  type="password"
+                  name="newPassword"
+                  placeholder="Enter new password"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                  required
+                />
+                <input
+                  type="password"
+                  name="confirmNewPass"
+                  placeholder="Confirm new password"
+                  value={formData.confirmNewPass}
+                  onChange={handleChange}
+                  required
+                />
+                <button className="change-pass" disabled={!isFormValid()}>
+                  Change Password
+                </button>
+              </>
+            )}
           </form>
         </div>
       </div>

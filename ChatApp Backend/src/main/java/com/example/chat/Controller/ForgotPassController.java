@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.chat.DTO.ForgotPassDTO;
 import com.example.chat.DTO.ForgotPassOtpDTO;
-import com.example.chat.Model.User;
 import com.example.chat.Service.OtpService;
 import com.example.chat.Service.UserService;
 
@@ -19,7 +18,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @CrossOrigin(origins = "${cors.allowed-origins}")
-@RequestMapping("/forgot-pass")
+@RequestMapping("/forgot-password")
 public class ForgotPassController {
 
     @Autowired
