@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,15 +22,20 @@ import com.example.chat.Service.UserService;
 @CrossOrigin(origins = "${cors.allowed-origins}")
 @RequestMapping("/users")
 public class UserController {
-    
+
     @Autowired
     private UserService userService;
 
     @GetMapping("/search")
-    public ResponseEntity<List<UserSearchDTO>> searchUsers(@RequestParam String query) {
+    public ResponseEntity<List<UserSearchDTO>> searchUsers(
+            @RequestParam String query,
+            JwtAuthenticationToken auth) {
+
         try {
-            List<UserSearchDTO> users = userService.searchUsers(query);
+            Long loggedInUserId = Long.valueOf(auth.getName());
+            List<UserSearchDTO> users = userService.searchUsers(query, loggedInUserId);
             return ResponseEntity.ok(users);
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body(null);

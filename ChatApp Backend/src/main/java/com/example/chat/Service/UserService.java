@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,8 +29,9 @@ public class UserService {
     @Autowired
     private OtpService otpService;
 
-    public List<UserSearchDTO> searchUsers(String query) {
-        List<User> users = userRepo.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query);
+    public List<UserSearchDTO> searchUsers(String query, Long loggedInUserId) {
+
+        List<User> users = userRepo.searchUsersExcludeLoggedIn(query, loggedInUserId);
 
         return users.stream()
                 .map(user -> new UserSearchDTO(
@@ -60,14 +62,16 @@ public class UserService {
         userRepo.save(user);
     }
 
-    public void changePassword(@Valid ForgotPassDTO forgotPassDTO, String email) {
+    public void changePassword(ForgotPassDTO forgotPassDTO) {
+
+        String email = forgotPassDTO.getEmail().trim();
+
         if (!otpService.verifyOtp(email, forgotPassDTO.getOtp())) {
             throw new IllegalArgumentException("Invalid or expired OTP");
         }
         if (!forgotPassDTO.getNewPassword().equals(forgotPassDTO.getConfirmNewPass())) {
             throw new IllegalArgumentException("Passwords do not match");
         }
-
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 

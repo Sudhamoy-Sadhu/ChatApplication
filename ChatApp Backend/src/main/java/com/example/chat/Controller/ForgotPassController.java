@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,10 +40,10 @@ public class ForgotPassController {
         }
     }
 
-    @PostMapping("/change-password")
+    @PatchMapping("/change-password")
     public ResponseEntity<?> changePassword(@Valid @RequestBody ForgotPassDTO forgotPassDTO) {
         try {
-            userService.changePassword(forgotPassDTO, forgotPassDTO.getEmail());
+            userService.changePassword(forgotPassDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body("Password Changed Successfully!");
         } catch (IllegalArgumentException e) {
             return ResponseEntity
