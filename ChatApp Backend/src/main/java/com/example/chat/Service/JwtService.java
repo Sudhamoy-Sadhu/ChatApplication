@@ -277,16 +277,11 @@ public class JwtService {
     }
 
     public LoginResponseDTO loginUser(User user) {
-        String access = createAccessToken(user, Set.of("USER"));
-        String refresh = createRefreshToken(user);
+        String accessToken = createAccessToken(user, Set.of("USER"));
         String username = user.getUsername();
         String email = user.getEmail();
-        String status = user.getStatus().name();
-        var createdAt = user.getCreatedAt() != null ? 
-                LocalDateTime.ofInstant(user.getCreatedAt(), java.time.ZoneOffset.UTC) : null;
-        var updatedAt = user.getUpdatedAt() != null ? 
-                LocalDateTime.ofInstant(user.getUpdatedAt(), java.time.ZoneOffset.UTC) : null;
-        return new LoginResponseDTO(access, refresh, username, email, status, createdAt, updatedAt);
+        User.Status status = user.getStatus();
+        return new LoginResponseDTO(accessToken, username, email, status);
     }
 
 }

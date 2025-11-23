@@ -58,23 +58,32 @@ public class AuthController {
         String access = jwtService.createAccessToken(user, Set.of("USER"));
         String refresh = jwtService.createRefreshToken(user);
 
-        ResponseCookie cookie = ResponseCookie.from("refresh_token", refresh)
+        ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refresh)
                 .httpOnly(true)
                 .secure(false) // in production set true
                 .path("/auth/refresh") // cookie sent only for refresh API
                 .maxAge(7 * 24 * 3600)
-                .sameSite("Strict")
+                .sameSite("None")
                 .build();
 
-        response.addHeader("Set-Cookie", cookie.toString());
+        response.addHeader("Set-Cookie", refreshCookie.toString());
+
+        ResponseCookie accessCookie = ResponseCookie.from("access_token", access)
+                .httpOnly(true)
+                .secure(false)
+                .path("/") // sent for all backend APIs
+                .maxAge(15 * 60) // 15 minutes
+                .sameSite("None")
+                .build();
+
+        response.addHeader("Set-Cookie", accessCookie.toString());
 
         // Return ONLY ACCESS TOKEN
         return ResponseEntity.ok(new LoginResponseDTO(
-                    access,
-                    user.getUsername(),
-                    user.getEmail(),
-                    user.getStatus()
-            ));
+                access,
+                user.getUsername(),
+                user.getEmail(),
+                user.getStatus()));
     }
 
     @PostMapping("/refresh")

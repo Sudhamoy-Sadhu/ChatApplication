@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./ForgotPassword.css";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
 import { useNavigate } from 'react-router-dom';
 
@@ -74,7 +74,7 @@ export default function ForgotPassword() {
       return;
     }
     try {
-      const response = await axios.post(
+      const response = await axios.patch(
         "http://localhost:8080/forgot-password/change-password",
         {
           email: formData.email,
@@ -87,7 +87,9 @@ export default function ForgotPassword() {
       console.log("Change Password Response:", response.data);
       setOtpSent(false);
       setFormData({ email: "", otp: "", newPassword: "", confirmNewPass: "" });
-      navigate("/");
+      setTimeout(() => {
+        navigate("/");
+      }, 2000);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to change password");
       console.error("Error changing password:", error);
@@ -150,6 +152,7 @@ export default function ForgotPassword() {
             )}
           </form>
         </div>
+        <ToastContainer position="top-right" autoClose={2000} theme="light" />
       </div>
     </>
   );

@@ -41,10 +41,16 @@ public class SecurityConfig {
                 .and()
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/.well-known/jwks.json", "/signUp/**", "/ws/**").permitAll()
+                        .requestMatchers("/auth/**", "/.well-known/jwks.json", "/signUp/**", "/forgot-password/**",
+                                "/ws/**")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.decoder(jwtDecoder).jwtAuthenticationConverter(jwtAuthConverter())));
+        http.addFilterBefore(
+                new JwtCookieToHeaderFilter("accessToken"),
+                org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter.class);
+
         return http.build();
     }
 
@@ -53,9 +59,10 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOrigin(allowedOrigins);
+        config.addAllowedOriginPattern(allowedOrigins);
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
+        config.addExposedHeader("Authorization");
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }

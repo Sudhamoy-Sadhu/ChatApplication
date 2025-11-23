@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.chat.Model.PasswordResetToken;
 import com.example.chat.Model.User;
@@ -25,7 +26,7 @@ public class OtpService {
 
     @Autowired
     private PasswordResetTokenRepo tokenRepo;
-
+    @Transactional
     public String sendOtpEmail(String toEmail) {
         Optional<User> existingUser = userRepo.findByEmail(toEmail);
         if (existingUser.isEmpty()) {

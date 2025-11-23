@@ -4,12 +4,8 @@ import "./ChatList.css";
 import { ChatContext } from "../ContextAPI/ChatContext";
 
 export default function ChatList() {
-  const {
-    selectedContact,
-    setSelectedContact,
-    searchResults,
-    searchQuery
-  } = useContext(ChatContext);
+  const { selectedContact, setSelectedContact, searchResults, searchQuery } =
+    useContext(ChatContext);
 
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +17,10 @@ export default function ChatList() {
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get("http://localhost:8080/contacts/allContacts");
+
+        const response = await axios.get(
+          "http://localhost:8080/contacts/allContacts",{withCredentials: true}
+        );
         setContacts(response.data);
       } catch (err) {
         console.error("Failed to fetch contacts:", err);
@@ -48,7 +47,8 @@ export default function ChatList() {
     }
   };
 
-  if (loading) return <div className="chat-list-loading">Loading contacts...</div>;
+  if (loading)
+    return <div className="chat-list-loading">Loading contacts...</div>;
   if (error) return <div className="chat-list-error">{error}</div>;
 
   // Decide which list to show: search results or contacts
@@ -57,9 +57,19 @@ export default function ChatList() {
   if (!displayList || displayList.length === 0) {
     return (
       <div className="empty-chat-list">
-        <h3>{searchQuery ? "No users found!" : "Start connecting with friends!"}</h3>
-        <p>{searchQuery ? "Try searching with a different name or email." : "Find people to chat with and build your circle."}</p>
-        <p>{searchQuery ? "" : "Search with email for existing users or sent an invite!👋"}</p>
+        <h3>
+          {searchQuery ? "No users found!" : "Start connecting with friends!"}
+        </h3>
+        <p>
+          {searchQuery
+            ? "Try searching with a different name or email."
+            : "Find people to chat with and build your circle."}
+        </p>
+        <p>
+          {searchQuery
+            ? ""
+            : "Search with email for existing users or sent an invite!👋"}
+        </p>
       </div>
     );
   }
@@ -71,9 +81,16 @@ export default function ChatList() {
         const isContact = contacts.some((c) => c.id === user.id);
 
         return (
-          <div key={user.id} className="chat-item" onClick={() => isContact && setSelectedContact(user)}>
+          <div
+            key={user.id}
+            className="chat-item"
+            onClick={() => isContact && setSelectedContact(user)}
+          >
             <div className="avatar">
-              <img src={user.profileImageUrl || "/default-avatar.png"} alt={user.username || user.name} />
+              <img
+                src={user.profileImageUrl || "/default-avatar.png"}
+                alt={user.username || user.name}
+              />
             </div>
             <div className="chat-info">
               <div className="details">
@@ -81,14 +98,20 @@ export default function ChatList() {
                 <p>{isContact ? user.lastMessage || "Say hi!" : user.email}</p>
               </div>
               {!isContact && (
-                <button className="connect-btn" onClick={() => sendRequest(user.id)}>
+                <button
+                  className="connect-btn"
+                  onClick={() => sendRequest(user.id)}
+                >
                   {user.exists ? "Connect" : "Invite"}
                 </button>
               )}
               {isContact && (
                 <span>
                   {user.lastMessageTime
-                    ? new Date(user.lastMessageTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                    ? new Date(user.lastMessageTime).toLocaleTimeString(
+                        "en-GB",
+                        { hour: "2-digit", minute: "2-digit" }
+                      )
                     : ""}
                 </span>
               )}
