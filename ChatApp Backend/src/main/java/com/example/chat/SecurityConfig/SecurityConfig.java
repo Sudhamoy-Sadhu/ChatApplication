@@ -48,7 +48,7 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.decoder(jwtDecoder).jwtAuthenticationConverter(jwtAuthConverter())));
         http.addFilterBefore(
-                new JwtCookieToHeaderFilter("accessToken"),
+                new JwtCookieToHeaderFilter("access_token"),
                 org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter.class);
 
         return http.build();

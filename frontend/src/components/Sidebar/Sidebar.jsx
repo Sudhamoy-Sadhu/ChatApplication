@@ -1,43 +1,103 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import "./Sidebar.css";
 import { FaGear } from "react-icons/fa6";
 import { FaSearch } from "react-icons/fa";
 import axios from "axios";
 import { ChatContext } from "../ContextAPI/ChatContext";
+import { useNavigate } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
 
 export default function Sidebar() {
-  const { searchQuery, setSearchQuery, setSearchResults } = useContext(ChatContext);
+  const { searchQuery, setSearchQuery, setSearchResults } =
+    useContext(ChatContext);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  const navigate = useNavigate();
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
     try {
       const response = await axios.get(
-        `http://localhost:8080/users/search?query=${searchQuery}`
+        `http://localhost:8080/users/search?query=${searchQuery}`,
+        { withCredentials: true }
       );
-      setSearchResults(response.data); // update context with results
+      setSearchResults(response.data);
     } catch (err) {
       console.error("Search failed", err);
       setSearchResults([]);
     }
   };
 
+  const handleLogOut = async () => {
+    try {
+      const response = await axios.post(
+        "http://localhost:8080/auth/logout",
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+      if (response.status === 200) {
+        toast.success("Logged out successfully!", { autoClose: 2000 });
+      setSearchResults([]);
+      localStorage.removeItem("auth");
+      localStorage.removeItem("user");
+      setTimeout(() => {
+        navigate("/login");
+      }, 2500);
+    }
+    } catch (err) {
+      toast.error("Logout Failed");
+      console.error("Logout Failed", err);
+      setSearchResults([]);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div className="sidebar-header">
-      <div className="settings">
+      <div className="settings" ref={menuRef}>
         <h2 className="logo">ChatAPP</h2>
-        <span><FaGear /></span>
+        {/* 🌟 SETTINGS ICON + DROPDOWN */}
+        <span className="settings-icon" onClick={() => setShowMenu(!showMenu)}>
+          <FaGear />
+        </span>
+
+        {showMenu && (
+          <div className="settings-menu">
+            <button className="menu-item">Profile</button>
+            <button className="menu-item">Connection Requests</button>
+            <button className="menu-item" onClick={handleLogOut}>
+              Logout
+            </button>
+          </div>
+        )}
       </div>
       <div className="search-box">
-        <span className="search-icon"><FaSearch /></span>
+        <span className="search-icon">
+          <FaSearch />
+        </span>
         <input
           type="text"
           placeholder="Search people or start a new chat..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()} // search on Enter
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
         />
       </div>
+      <ToastContainer position="top-right" autoClose={2000} theme="light" />
     </div>
   );
 }

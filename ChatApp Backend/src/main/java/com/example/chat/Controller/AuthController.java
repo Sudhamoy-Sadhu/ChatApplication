@@ -60,7 +60,7 @@ public class AuthController {
 
         ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refresh)
                 .httpOnly(true)
-                .secure(false) // in production set true
+                .secure(true) // in production set true
                 .path("/auth/refresh") // cookie sent only for refresh API
                 .maxAge(7 * 24 * 3600)
                 .sameSite("None")
@@ -70,7 +70,7 @@ public class AuthController {
 
         ResponseCookie accessCookie = ResponseCookie.from("access_token", access)
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .path("/") // sent for all backend APIs
                 .maxAge(15 * 60) // 15 minutes
                 .sameSite("None")
@@ -117,7 +117,7 @@ public class AuthController {
 
             ResponseCookie cookie = ResponseCookie.from("refresh_token", newRefresh)
                     .httpOnly(true)
-                    .secure(false) // true in production
+                    .secure(true) // true in production
                     .path("/auth/refresh")
                     .maxAge(7 * 24 * 3600)
                     .sameSite("Strict")
@@ -133,7 +133,10 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request,
             HttpServletResponse response) {
+
         String refresh = null;
+
+        // Extract refresh_token from cookies
         if (request.getCookies() != null) {
             for (Cookie c : request.getCookies()) {
                 if (c.getName().equals("refresh_token")) {
@@ -143,21 +146,36 @@ public class AuthController {
             }
         }
 
+        // Revoke token in DB/Redis store
         if (refresh != null) {
             jwtService.revokeRefreshToken(refresh);
         }
 
-        // 🔥 Clear the cookie
-        ResponseCookie clear = ResponseCookie.from("refresh_token", "")
+        // 🔥 Clear REFRESH TOKEN COOKIE
+        ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")
                 .httpOnly(true)
-                .secure(false)
-                .path("/auth/refresh")
-                .maxAge(0) // delete cookie
+                .secure(true) // true in production
+                .path("/auth/refresh") // same path as login
+                .maxAge(0) // delete
+                .sameSite("None") // must match login cookie
                 .build();
 
-        response.addHeader("Set-Cookie", clear.toString());
+        // 🔥 Clear ACCESS TOKEN COOKIE
+        ResponseCookie clearAccess = ResponseCookie.from("access_token", "")
+                .httpOnly(true)
+                .secure(true) // true in production
+                .path("/") // same path as login
+                .maxAge(0) // delete
+                .sameSite("None") // must match login cookie
+                .build();
 
-        return ResponseEntity.ok("Logged out");
+        // Add both cookies to response
+        response.addHeader("Set-Cookie", clearRefresh.toString());
+        response.addHeader("Set-Cookie", clearAccess.toString());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Logged out successfully",
+                "status", "success"));
     }
 
     @GetMapping("/validate")

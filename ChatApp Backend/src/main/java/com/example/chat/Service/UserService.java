@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,15 +12,17 @@ import org.springframework.web.multipart.MultipartFile;
 import com.example.chat.DTO.ForgotPassDTO;
 import com.example.chat.DTO.UserSearchDTO;
 import com.example.chat.Model.User;
+import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
-
-import jakarta.validation.Valid;
 
 @Service
 public class UserService {
 
     @Autowired
     private UserRepo userRepo;
+
+    @Autowired
+    private ContactRepo contactRepo;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -33,11 +34,29 @@ public class UserService {
 
         List<User> users = userRepo.searchUsersExcludeLoggedIn(query, loggedInUserId);
 
+        if (users.isEmpty()) {
+            return List.of(new UserSearchDTO(
+                    null,
+                    null, 
+                    query, 
+                    null, 
+                    false, 
+                    false
+            ));
+        }
+
         return users.stream()
-                .map(user -> new UserSearchDTO(
-                        user.getUsername(),
-                        user.getEmail(),
-                        user.getProfilePicture()))
+                .map(user -> {
+                    boolean connected = contactRepo.existsConnection(loggedInUserId, user.getId());
+                    return new UserSearchDTO(
+                            user.getId(),
+                            user.getUsername(),
+                            user.getEmail(),
+                            user.getProfilePicture(),
+                            true, 
+                            connected 
+                    );
+                })
                 .collect(Collectors.toList());
     }
 
