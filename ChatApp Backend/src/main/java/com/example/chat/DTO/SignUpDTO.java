@@ -27,4 +27,6 @@ public class SignUpDTO {
     @NotBlank(message = "Confirm Password should not be empty")
     private String confirmPassword;
     
+    private String inviteToken;
+    
 }

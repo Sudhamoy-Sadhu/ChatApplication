@@ -5,11 +5,13 @@ import ChatHome from "./components/ChatHome/ChatHome";
 import LoginandSignUp from "./components/Login&SignUp/Login&SignUp";
 import ProtectedRoute from "./components/ProtectedRoutes/ProtectedRoutes";
 import ForgotPassword from "./components/ForgotPassword/ForgotPassword";
+import ModalProvider from "./components/ContextAPI/ModalContext";
 
 
 export default function App() {
 
   return (
+    <ModalProvider>
     <Router>
       <Routes>
         <Route path="/login" element={<LoginandSignUp />} />
@@ -17,5 +19,6 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><ChatHome /></ProtectedRoute>} />
       </Routes>
     </Router>
+    </ModalProvider>
   );
 }

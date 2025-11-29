@@ -1,0 +1,84 @@
+.invite-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.invite-modal-container {
+  background: #fff;
+  width: 380px;
+  padding: 25px;
+  border-radius: 12px;
+  position: relative;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  animation: fadeIn 0.2s ease-in;
+}
+
+.invite-modal-container h2{
+    color: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.close-btn {
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.modal-field {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-field label {
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.modal-field input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.send-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.send-btn:hover {
+  background: #0063d6;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

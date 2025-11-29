@@ -2,11 +2,12 @@ import React, { useContext, useState, useEffect } from "react";
 import axios from "axios";
 import "./ChatList.css";
 import { ChatContext } from "../ContextAPI/ChatContext";
+import { ModalContext } from "../ContextAPI/ModalContext";
 
 export default function ChatList() {
   const { selectedContact, setSelectedContact, searchResults, searchQuery } =
     useContext(ChatContext);
-
+  const { openInviteModal } = useContext(ModalContext);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -122,9 +123,9 @@ export default function ChatList() {
                 (isNotFound ? (
                   <button
                     className="invite-btn"
-                    onClick={() => sendInvite(user.search)}
+                    onClick={() => openInviteModal(user.search)}
                   >
-                    Send Invite
+                    Invite
                   </button>
                 ) : !isContact ? (
                   <button

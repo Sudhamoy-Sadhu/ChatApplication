@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import "./Login&SignUp.css";
 import Carousel from "./Carousel";
 import { AuthContext } from "../ContextAPI/AuthContext";
+import { useLocation } from "react-router-dom";
 
 const LoginSignupPage = () => {
   const navigate = useNavigate();
@@ -20,6 +21,9 @@ const LoginSignupPage = () => {
     confirmPassword: "",
     username: "",
   });
+  const location = useLocation();
+
+  const inviteToken = new URLSearchParams(location.search).get("invite");
 
   const isFormValid = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -72,6 +76,12 @@ const LoginSignupPage = () => {
     }
   };
 
+  React.useEffect(() => {
+    if (inviteToken) {
+      setIsLogin(false);
+    }
+  }, [inviteToken]);
+
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
@@ -113,6 +123,7 @@ const LoginSignupPage = () => {
               email: formData.email,
               password: formData.password,
               confirmPassword: formData.confirmPassword,
+              inviteToken: inviteToken || null,
             }
           );
 

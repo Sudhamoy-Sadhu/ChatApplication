@@ -97,7 +97,6 @@ export default function Sidebar() {
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
         />
       </div>
-      <ToastContainer position="top-right" autoClose={2000} theme="light" />
     </div>
   );
 }
