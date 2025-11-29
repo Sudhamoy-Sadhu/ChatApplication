@@ -5,11 +5,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.chat.DTO.ForgotPassDTO;
 import com.example.chat.DTO.UserSearchDTO;
 import com.example.chat.Model.User;
+import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
 
 @Service
@@ -18,18 +21,44 @@ public class UserService {
     @Autowired
     private UserRepo userRepo;
 
-    public List<UserSearchDTO> searchUsers(String query) {
-        List<User> users = userRepo.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query);
+    @Autowired
+    private ContactRepo contactRepo;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private OtpService otpService;
+
+    public List<UserSearchDTO> searchUsers(String query, Long loggedInUserId) {
+
+        List<User> users = userRepo.searchUsersExcludeLoggedIn(query, loggedInUserId);
+
+        if (users.isEmpty()) {
+            return List.of(new UserSearchDTO(
+                    null,
+                    null, 
+                    query, 
+                    null, 
+                    false, 
+                    false
+            ));
+        }
 
         return users.stream()
-                .map(user -> new UserSearchDTO(
-                user.getUsername(),
-                user.getEmail(),
-                user.getProfilePicture()
-        ))
+                .map(user -> {
+                    boolean connected = contactRepo.existsConnection(loggedInUserId, user.getId());
+                    return new UserSearchDTO(
+                            user.getId(),
+                            user.getUsername(),
+                            user.getEmail(),
+                            user.getProfilePicture(),
+                            true, 
+                            connected 
+                    );
+                })
                 .collect(Collectors.toList());
     }
-    
 
     public void updateProfilePicture(Long userId, MultipartFile file) throws IOException {
         // 1. Check file size
@@ -49,6 +78,23 @@ public class UserService {
 
         // 4. Save image as byte array
         user.setProfilePicture(file.getBytes());
+        userRepo.save(user);
+    }
+
+    public void changePassword(ForgotPassDTO forgotPassDTO) {
+
+        String email = forgotPassDTO.getEmail().trim();
+
+        if (!otpService.verifyOtp(email, forgotPassDTO.getOtp())) {
+            throw new IllegalArgumentException("Invalid or expired OTP");
+        }
+        if (!forgotPassDTO.getNewPassword().equals(forgotPassDTO.getConfirmNewPass())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        user.setPassword(passwordEncoder.encode(forgotPassDTO.getNewPassword()));
         userRepo.save(user);
     }
 

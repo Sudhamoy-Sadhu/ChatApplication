@@ -11,7 +11,7 @@ export default function ProtectedRoutes({ children }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const accessToken = Cookies.get("accessToken");
+      const accessToken = Cookies.get("access_token");
       if (!accessToken) {
         setIsAuth(false);
         setLoading(false);

@@ -9,37 +9,46 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   useEffect(() => {
-    const accessToken = Cookies.get("accessToken");
+    const accessToken = Cookies.get("access_token");
     const userData = Cookies.get("userData");
+
     if (accessToken) {
       setToken(accessToken);
-      setIsAuthenticated(true);
       setUser(userData ? JSON.parse(userData) : null);
+      setIsAuthenticated(true);
     } else {
       setIsAuthenticated(false);
     }
   }, []);
 
-  const login = (accessToken, refreshToken, userData) => {
-    Cookies.set("accessToken", accessToken, { expires: 1, secure: false });
-    Cookies.set("refreshToken", refreshToken, { expires: 7, secure: false });
-    Cookies.set("userData", JSON.stringify(userData), { expires: 1, secure: false });
+  // 🔥 LOGIN — now only accessToken + userData
+  const login = (accessToken, userData) => {
+    Cookies.set("access_token", accessToken, { expires: 1, secure: false });
+    Cookies.set("userData", JSON.stringify(userData), {
+      expires: 1,
+      secure: false,
+    });
+
     setToken(accessToken);
     setUser(userData);
     setIsAuthenticated(true);
   };
 
+  // 🔥 LOGOUT
   const logout = () => {
-    Cookies.remove("accessToken");
-    Cookies.remove("refreshToken");
+    Cookies.remove("access_token");
     Cookies.remove("userData");
-    setUser(null);
+
+    // refresh_token cookie is HttpOnly; backend will clear it during /logout
     setToken(null);
+    setUser(null);
     setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ token, isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider
+      value={{ token, isAuthenticated, user, login, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

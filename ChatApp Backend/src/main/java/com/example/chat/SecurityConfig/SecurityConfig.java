@@ -20,6 +20,9 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 import com.example.chat.Utils.PemUtils;
 
@@ -27,19 +30,41 @@ import com.example.chat.Utils.PemUtils;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Value("${cors.allowed-origins}")
+    private String allowedOrigins;
+
     @Bean
     SecurityFilterChain api(HttpSecurity http, JwtDecoder jwtDecoder) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .cors()
+                .and()
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login", "/auth/refresh", "/.well-known/jwks.json").permitAll()
-                        .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/**").permitAll()
+                        .requestMatchers("/auth/**", "/.well-known/jwks.json", "/signUp/**", "/forgot-password/**",
+                                "/ws/**")
+                        .permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.decoder(jwtDecoder).jwtAuthenticationConverter(jwtAuthConverter())));
+        http.addFilterBefore(
+                new JwtCookieToHeaderFilter("access_token"),
+                org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationFilter.class);
+
         return http.build();
+    }
+
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(true);
+        config.addAllowedOriginPattern(allowedOrigins);
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");
+        config.addExposedHeader("Authorization");
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
     }
 
     @Bean
@@ -48,9 +73,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(RSAPublicKey publicKey) {
+    JwtDecoder jwtDecoder(RSAPublicKey publicKey,
+            @Value("${security.jwt.issuer}") String issuer) {
+
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer("https://your-app.example"));
+        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuer));
         return decoder;
     }
 

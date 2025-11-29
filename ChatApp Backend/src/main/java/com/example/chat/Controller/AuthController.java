@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -15,10 +16,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.chat.DTO.LoginRequestDTO;
+import com.example.chat.DTO.LoginResponseDTO;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.SignUpRepo;
 import com.example.chat.Service.JwtService;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.Data;
 
@@ -38,7 +43,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody @Valid LoginRequestDTO req) {
+    public ResponseEntity<?> login(@RequestBody @Valid LoginRequestDTO req,
+            HttpServletResponse response) {
         var userOpt = signUpRepo.findByEmail(req.getEmail());
         if (userOpt.isEmpty())
             return ResponseEntity.status(401).body("Invalid credentials");
@@ -48,32 +54,128 @@ public class AuthController {
             return ResponseEntity.status(401).body("Invalid credentials");
         }
 
-        return ResponseEntity.ok(jwtService.loginUser(user));
+        // Generate Tokens
+        String access = jwtService.createAccessToken(user, Set.of("USER"));
+        String refresh = jwtService.createRefreshToken(user);
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refresh)
+                .httpOnly(true)
+                .secure(true) // in production set true
+                .path("/auth/refresh") // cookie sent only for refresh API
+                .maxAge(7 * 24 * 3600)
+                .sameSite("None")
+                .build();
+
+        response.addHeader("Set-Cookie", refreshCookie.toString());
+
+        ResponseCookie accessCookie = ResponseCookie.from("access_token", access)
+                .httpOnly(true)
+                .secure(true)
+                .path("/") // sent for all backend APIs
+                .maxAge(15 * 60) // 15 minutes
+                .sameSite("None")
+                .build();
+
+        response.addHeader("Set-Cookie", accessCookie.toString());
+
+        // Return ONLY ACCESS TOKEN
+        return ResponseEntity.ok(new LoginResponseDTO(
+                access,
+                user.getUsername(),
+                user.getEmail(),
+                user.getStatus()));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(@RequestBody RefreshRequest req) {
+    public ResponseEntity<?> refresh(HttpServletRequest request,
+            HttpServletResponse response) {
+
+        String oldRefresh = null;
+        if (request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if (c.getName().equals("refresh_token")) {
+                    oldRefresh = c.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (oldRefresh == null) {
+            return ResponseEntity.status(401).body("Refresh token missing");
+        }
+
         try {
-            String newRefresh = jwtService.rotateRefreshToken(req.getRefreshToken());
-            // find the subject from the newRefresh? Simpler: parse old token to get user id
-            // and create new access for that user
-            // but we can deduce user from DB lookup before rotation if needed. We'll parse
-            // old token:
-            var jwt = com.nimbusds.jwt.SignedJWT.parse(req.getRefreshToken());
+            // Rotate refresh token
+            String newRefresh = jwtService.rotateRefreshToken(oldRefresh);
+
+            // Parse old token to get user id
+            var jwt = com.nimbusds.jwt.SignedJWT.parse(oldRefresh);
             String subject = jwt.getJWTClaimsSet().getSubject();
-            // You must load user by id
             var user = signUpRepo.findById(Long.valueOf(subject)).orElseThrow();
+
             String newAccess = jwtService.createAccessToken(user, Set.of("USER"));
-            return ResponseEntity.ok(new LoginResponse(newAccess, newRefresh));
+
+            ResponseCookie cookie = ResponseCookie.from("refresh_token", newRefresh)
+                    .httpOnly(true)
+                    .secure(true) // true in production
+                    .path("/auth/refresh")
+                    .maxAge(7 * 24 * 3600)
+                    .sameSite("Strict")
+                    .build();
+            response.addHeader("Set-Cookie", cookie.toString());
+
+            return ResponseEntity.ok(Map.of("accessToken", newAccess));
         } catch (Exception ex) {
             return ResponseEntity.status(401).body("Invalid refresh token");
         }
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody RefreshRequest req) {
-        jwtService.revokeRefreshToken(req.getRefreshToken());
-        return ResponseEntity.ok("Logged out");
+    public ResponseEntity<?> logout(HttpServletRequest request,
+            HttpServletResponse response) {
+
+        String refresh = null;
+
+        // Extract refresh_token from cookies
+        if (request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if (c.getName().equals("refresh_token")) {
+                    refresh = c.getValue();
+                    break;
+                }
+            }
+        }
+
+        // Revoke token in DB/Redis store
+        if (refresh != null) {
+            jwtService.revokeRefreshToken(refresh);
+        }
+
+        // 🔥 Clear REFRESH TOKEN COOKIE
+        ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")
+                .httpOnly(true)
+                .secure(true) // true in production
+                .path("/auth/refresh") // same path as login
+                .maxAge(0) // delete
+                .sameSite("None") // must match login cookie
+                .build();
+
+        // 🔥 Clear ACCESS TOKEN COOKIE
+        ResponseCookie clearAccess = ResponseCookie.from("access_token", "")
+                .httpOnly(true)
+                .secure(true) // true in production
+                .path("/") // same path as login
+                .maxAge(0) // delete
+                .sameSite("None") // must match login cookie
+                .build();
+
+        // Add both cookies to response
+        response.addHeader("Set-Cookie", clearRefresh.toString());
+        response.addHeader("Set-Cookie", clearAccess.toString());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Logged out successfully",
+                "status", "success"));
     }
 
     @GetMapping("/validate")

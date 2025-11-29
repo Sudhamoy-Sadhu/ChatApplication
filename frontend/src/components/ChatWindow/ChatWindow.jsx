@@ -9,6 +9,7 @@ import { GoDotFill } from "react-icons/go";
 import { ChatContext } from "../ContextAPI/ChatContext";
 import { MdEmojiEmotions } from "react-icons/md";
 import 'emoji-picker-element';
+import { toast, ToastContainer } from "react-toastify";
 
 export default function ChatWindow() {
   const { selectedContact } = useContext(ChatContext);
@@ -161,6 +162,7 @@ export default function ChatWindow() {
         </div>
         <button className="send" onClick={sendMessage}>➤</button>
       </div>
+       <ToastContainer position="top-right" autoClose={2000} theme="light" />
     </div>
   );
 }

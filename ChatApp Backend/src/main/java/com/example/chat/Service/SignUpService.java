@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.chat.DTO.SignUpDTO;
 import com.example.chat.Model.User;
+import com.example.chat.Repository.InvitationRepo;
 import com.example.chat.Repository.SignUpRepo;
 
 import jakarta.validation.Valid;
@@ -19,8 +20,27 @@ public class SignUpService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private InvitationRepo invitationRepo;
+
+    @Autowired
+    private NotificationService notificationService;
+
     @Transactional
-    public void registerUser(@Valid SignUpDTO signUpDTO) {
+    public void registerUser(SignUpDTO signUpDTO) {
+
+        if (signUpDTO.getInviteToken() != null) {
+            invitationRepo.findByToken(signUpDTO.getInviteToken()).ifPresent(invite -> {
+                invite.setAccepted(true);
+                invitationRepo.save(invite);
+
+                // notify inviter
+                notificationService.notifyUser(
+                        invite.getSenderId(),
+                        invite.getReceiverName() + " has joined ChatApp using your invitation Link!");
+            });
+        }
+
         if (signUpRepo.existsByUsername(signUpDTO.getUsername())) {
             throw new IllegalArgumentException("Username Already exists");
         }
