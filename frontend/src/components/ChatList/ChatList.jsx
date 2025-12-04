@@ -35,7 +35,7 @@ export default function ChatList() {
   const sendRequest = async (userId) => {
     try {
       await axios.post(
-        "http://localhost:8080/contacts/request",
+        "http://localhost:8080/connection/sendRequest",
         { userId },
         { withCredentials: true }
       );

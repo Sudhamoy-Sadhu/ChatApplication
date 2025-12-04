@@ -47,7 +47,7 @@ public class AuthController {
             HttpServletResponse response) {
         var userOpt = signUpRepo.findByEmail(req.getEmail());
         if (userOpt.isEmpty())
-            return ResponseEntity.status(401).body("Invalid credentials");
+            return ResponseEntity.status(401).body("User Not Found!");
 
         User user = userOpt.get();
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {

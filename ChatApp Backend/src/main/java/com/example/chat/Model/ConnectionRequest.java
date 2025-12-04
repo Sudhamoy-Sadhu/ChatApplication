@@ -6,57 +6,56 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "users")
+@Table(name = "connection_request", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "requester_id", "target_id" })
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
-
+public class ConnectionRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String username;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @NotNull
+    private User requesterId;
 
-    @Column(unique = true)
-    private String email;
-
-    @Column(nullable = false)
-    private String password;
-
-    @Column(nullable = false)
-    private boolean isVerified = false;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @NotNull
+    private User targetId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status = Status.ACTIVE;
+    private Status status;
 
-    @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
-    private Instant updatedAt;
+    private Instant updatedAt = Instant.now();
 
-    @Lob
-    @Column(name = "profile_picture")
-    private byte[] profilePicture;
-
-    public enum Status {
-        ACTIVE,
-        INACTIVE,
-        BANNED
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = Instant.now();
     }
-
+    
+    public enum Status {
+    PENDING, ACCEPTED, REJECTED, CANCELED
+    }
 }
+
