@@ -55,7 +55,7 @@ public class ConnectionRequest {
     }
     
     public enum Status {
-    PENDING, ACCEPTED, REJECTED, CANCELED
+    NONE, PENDING, ACCEPTED, REJECTED, CANCELED
     }
 }
 

@@ -1,0 +1,145 @@
+.cr-wrapper {
+    width: 100%;
+    margin: 20px auto;
+    height: 100%;
+    padding: 4rem;
+    background: #214C79;
+    background-image:
+        linear-gradient(#214C79, #11293B);
+}
+
+.cr-title {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+    text-align: center;
+    color: #fff;
+}
+
+.cr-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cr-card {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 12px 15px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s;
+}
+
+.cr-card:hover {
+    transform: translateY(-2px);
+}
+
+.cr-avatar-section {
+    flex-shrink: 0;
+}
+
+.cr-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.cr-info {
+    flex-grow: 1;
+    margin-left: 12px;
+}
+
+.cr-name {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #222;
+}
+
+.cr-email {
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.cr-action {
+    display: flex;
+    gap: 8px;
+}
+
+.cr-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cr-accept {
+    background-color: #4caf50;
+    color: #fff;
+}
+
+.cr-accept:hover {
+    background-color: #45a049;
+}
+
+.cr-reject {
+    background-color: #f44336;
+    color: #fff;
+}
+
+.cr-reject:hover {
+    background-color: #d73833;
+}
+
+.cr-cancel {
+    background-color: #ff9800;
+    color: #fff;
+}
+
+.cr-cancel:hover {
+    background-color: #e68900;
+}
+
+.cr-connected {
+    color: #4caf50;
+    font-weight: 500;
+}
+
+.cr-rejected {
+    color: #f44336;
+    font-weight: 500;
+}
+
+.cr-canceled {
+    color: #ff9800;
+    font-weight: 500;
+}
+
+.cr-empty {
+    text-align: center;
+    font-size: 1rem;
+    color: #777;
+    padding: 20px;
+}
+
+.cr-date {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    font-size: 12px;
+    color: #383838;
+    background: #f1f1f1;
+    padding: 4px 10px;
+    border-radius: 8px;
+    width: fit-content;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    font-weight: 500;
+    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.05);
+}

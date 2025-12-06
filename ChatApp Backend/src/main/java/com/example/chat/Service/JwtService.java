@@ -277,11 +277,12 @@ public class JwtService {
     }
 
     public LoginResponseDTO loginUser(User user) {
+        Long id = user.getId();
         String accessToken = createAccessToken(user, Set.of("USER"));
         String username = user.getUsername();
         String email = user.getEmail();
         User.Status status = user.getStatus();
-        return new LoginResponseDTO(accessToken, username, email, status);
+        return new LoginResponseDTO(id,accessToken, username, email, status);
     }
 
 }

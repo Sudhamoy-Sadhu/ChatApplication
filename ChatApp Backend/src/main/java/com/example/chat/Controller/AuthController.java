@@ -80,6 +80,7 @@ public class AuthController {
 
         // Return ONLY ACCESS TOKEN
         return ResponseEntity.ok(new LoginResponseDTO(
+                user.getId(),
                 access,
                 user.getUsername(),
                 user.getEmail(),

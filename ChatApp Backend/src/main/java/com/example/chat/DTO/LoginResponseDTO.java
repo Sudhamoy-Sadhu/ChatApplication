@@ -8,6 +8,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class LoginResponseDTO {
+    private final Long id;
     private final String accessToken;
     private final String username;
     private final String email;

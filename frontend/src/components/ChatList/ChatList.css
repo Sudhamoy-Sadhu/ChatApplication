@@ -31,7 +31,6 @@
     padding: 3% 5%;
     gap: 5%;
     cursor: pointer;
-
     &:hover {
         background: #1452825c;
     }
@@ -40,6 +39,9 @@
 
 .chat-item .avatar {
     /* background: white; */
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 50px;
     height: 50px;
     border-radius: 50%;
@@ -50,8 +52,8 @@
 }
 
 .chat-item .avatar img {
-    height: 50px;
-    width: 50px;
+    height: 55px;
+    width: 55px;
     aspect-ratio: 1/1;
     width: fit-content;
     border-radius: 50%;
@@ -78,7 +80,7 @@
     flex-direction: column;
 }
 
- .invite-btn{
+.invite-btn {
     width: 20%;
     height: 50%;
     display: flex;
@@ -87,32 +89,64 @@
     border-radius: 2px;
     padding: 5px;
     cursor: pointer;
-    border:none;
+    border: none;
     border-radius: 50px;
-    &:hover{
+
+    &:hover {
         background: yellowgreen;
         color: white;
         transition: 0.4s ease-in;
     }
 }
 
-.connect-btn{
-     width: 20%;
-    height: 50%;
+.connect-btn {
+    width: 25%;
+    height: 32px;
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 2px;
-    padding: 5px;
+
+    background: linear-gradient(135deg, #38b000, #70e000);
+    color: white;
+
+    border: none;
+    border-radius: 25px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+
     cursor: pointer;
-    font-size: 12px;
-    border:none;
-    border-radius: 40px;
-    &:hover{
-        background: rgb(67, 190, 0);
-        color: white;
-    }
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0px 3px 6px rgba(0, 150, 0, 0.2);
 }
+
+.connect-btn:hover {
+    background: linear-gradient(135deg, #2d9200, #63c900);
+    transform: translateY(-2px);
+    box-shadow: 0px 5px 10px rgba(0, 150, 0, 0.3);
+}
+
+.connect-btn-sent {
+    width: 25%;
+    height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background-color: #bfbfbf;
+    color: #555;
+
+    border: none;
+    border-radius: 25px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+
+    cursor: not-allowed;
+    opacity: 0.8;
+    box-shadow: none;
+}
+
 
 .chat-info span {
     width: 30%;
@@ -120,7 +154,8 @@
     justify-content: center;
     align-items: center;
 }
-.empty-chat-list{
+
+.empty-chat-list {
     display: flex;
     justify-content: center;
     align-items: center;

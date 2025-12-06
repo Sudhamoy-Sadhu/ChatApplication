@@ -6,10 +6,14 @@ import ChatWindow from "../ChatWindow/ChatWindow.jsx";
 import { ModalContext } from "../ContextAPI/ModalContext.jsx";
 import InviteModal from "../Modals/InviteModal/InviteModal.jsx";
 import { ToastContainer } from "react-toastify";
+import { usePageManager } from "../ContextAPI/PageManagerContext.jsx";
+import ConnectionRequest from "../ConnectionRequest/ConnectionRequest.jsx";
+
 
 export default function ChatHome() {
   const { inviteModalOpen, inviteEmail, closeInviteModal } =
     useContext(ModalContext);
+  const { activePage } = usePageManager();
   return (
     <>
       {inviteModalOpen && (
@@ -21,7 +25,10 @@ export default function ChatHome() {
           <ChatList />
         </div>
         <div className="chat-window">
-          <ChatWindow />
+          {activePage ==="request" && <ConnectionRequest />}
+          {activePage ==="setting" && <ConnectionRequest />}
+          {activePage ==="profile" && <ConnectionRequest />}
+          {activePage ==="home" && <ChatWindow/>}
         </div>
       </div>
       <ToastContainer position="top-right" autoClose={2000} theme="light" />

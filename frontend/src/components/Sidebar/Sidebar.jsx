@@ -6,12 +6,15 @@ import axios from "axios";
 import { ChatContext } from "../ContextAPI/ChatContext";
 import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
+import { usePageManager } from "../ContextAPI/PageManagerContext";
 
 export default function Sidebar() {
   const { searchQuery, setSearchQuery, setSearchResults } =
     useContext(ChatContext);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
+  const { goToPage } = usePageManager();
+  const { goBack } = usePageManager();
 
   const navigate = useNavigate();
 
@@ -42,11 +45,13 @@ export default function Sidebar() {
       if (response.status === 200) {
         toast.success("Logged out successfully!", { autoClose: 2000 });
       setSearchResults([]);
+      setSearchQuery("");
+      goBack();
       localStorage.removeItem("auth");
       localStorage.removeItem("user");
       setTimeout(() => {
         navigate("/login");
-      }, 2500);
+      }, 2000);
     }
     } catch (err) {
       toast.error("Logout Failed");
@@ -78,7 +83,7 @@ export default function Sidebar() {
         {showMenu && (
           <div className="settings-menu">
             <button className="menu-item">Profile</button>
-            <button className="menu-item">Connection Requests</button>
+            <button className="menu-item" onClick={() => goToPage("request")}>Connection Requests</button>
             <button className="menu-item" onClick={handleLogOut}>
               Logout
             </button>

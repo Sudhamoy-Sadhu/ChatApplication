@@ -3,6 +3,8 @@ import axios from "axios";
 import "./ChatList.css";
 import { ChatContext } from "../ContextAPI/ChatContext";
 import { ModalContext } from "../ContextAPI/ModalContext";
+import { AuthContext } from "../ContextAPI/AuthContext";
+
 
 export default function ChatList() {
   const { selectedContact, setSelectedContact, searchResults, searchQuery } =
@@ -11,6 +13,11 @@ export default function ChatList() {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sentRequests, setSentRequests] = useState(new Set());
+  const { user } = useContext(AuthContext);
+  const userLoggedInId = user?.id;
+
+
 
   // Fetch logged-in user's contacts
   useEffect(() => {
@@ -31,33 +38,54 @@ export default function ChatList() {
     fetchContacts();
   }, []);
 
-  // Send friend request
-  const sendRequest = async (userId) => {
+  // Send connection request
+  const sendRequest = async (targetId) => {
     try {
       await axios.post(
-        "http://localhost:8080/connection/sendRequest",
-        { userId },
+        `http://localhost:8080/connection/sendRequest/${targetId}`,
+        {},
         { withCredentials: true }
       );
+      setSentRequests((prev) => new Set(prev).add(targetId));
       alert("Connection request sent!");
     } catch (err) {
+      alert(err.response.data)
       console.error(err);
     }
   };
 
-  // Send email invite
-  const sendInvite = async (email) => {
-    try {
-      await axios.post(
-        "http://localhost:8080/invite",
-        { email },
-        { withCredentials: true }
-      );
-      alert("Invitation sent!");
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  useEffect(() => {
+    if (!userLoggedInId || !searchResults || searchResults.length === 0) return;
+
+    const checkStatuses = async () => {
+      const updatedSet = new Set(sentRequests);
+
+      for (const u of searchResults) {
+        if (!u.id) continue;
+
+        try {
+          console.log("Checking status for:", userLoggedInId, u.id);
+
+          const response = await axios.get(
+            `http://localhost:8080/connection/status/${userLoggedInId}/${u.id}`,
+            { withCredentials: true }
+          );
+
+          if (response.data === "PENDING") {
+            updatedSet.add(u.id);
+          }
+        } catch (err) {
+          console.error("Status check failed for user:", u.id, err);
+        }
+      }
+
+      setSentRequests(updatedSet);
+    };
+
+    checkStatuses();
+  }, [userLoggedInId, searchResults]); 
+
+
 
   if (loading)
     return <div className="chat-list-loading">Loading contacts...</div>;
@@ -96,14 +124,14 @@ export default function ChatList() {
           >
             <div className="avatar">
               <img
-                src={user.profilePicture || "/default-avatar.png"}
+                src={user.profilePicture || "/assets/default-logo.png"}
                 alt="profile"
               />
             </div>
 
             <div className="chat-info">
               <div className="details">
-                {/* ⭐ Case 1: USER NOT FOUND */}
+                {/*Case 1: USER NOT FOUND */}
                 {isNotFound ? (
                   <>
                     <h4>User not found</h4>
@@ -111,14 +139,14 @@ export default function ChatList() {
                   </>
                 ) : (
                   <>
-                    {/* ⭐ Case 2: USER FOUND */}
+                    {/*Case 2: USER FOUND */}
                     <h4>{user.username}</h4>
                     <p>{isContact ? "Already connected" : user.email}</p>
                   </>
                 )}
               </div>
 
-              {/* ⭐ BUTTON LOGIC */}
+              {/*BUTTON LOGIC */}
               {searchQuery &&
                 (isNotFound ? (
                   <button
@@ -129,10 +157,13 @@ export default function ChatList() {
                   </button>
                 ) : !isContact ? (
                   <button
-                    className="connect-btn"
+                    className={sentRequests.has(user.id)
+                      ? "connect-btn-sent"
+                      : "connect-btn"}
+                    disabled={sentRequests.has(user.id)}
                     onClick={() => sendRequest(user.id)}
                   >
-                    Connect
+                    {sentRequests.has(user.id) ? "Pending" : "Connect"}
                   </button>
                 ) : null)}
             </div>
