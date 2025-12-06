@@ -95,7 +95,7 @@ const LoginSignupPage = () => {
     const validation = validateForm(formData, isLogin);
 
     if (!validation.isValid) {
-      toast.error(`❌ ${validation.message}`, { autoClose: 2500 });
+      toast.error(`${validation.message}`, { autoClose: 2500 });
       return;
     }
 
@@ -110,7 +110,7 @@ const LoginSignupPage = () => {
         const { id, accessToken, username, email, status } = response.data;
 
         login(accessToken, { id, username, email, status });
-        toast.success("✅ Login successful!", { autoClose: 1500 });
+        toast.success("Login successful!", { autoClose: 1500 });
         setFormData({ email: "", password: "" });
         setTimeout(() => navigate("/"), 1800);
       } else {
@@ -149,7 +149,7 @@ const LoginSignupPage = () => {
               error.response.data || "Signup failed. Please try again.";
             toast.error(`${errorMessage}`, { autoClose: 2500 });
           } else {
-            toast.error("⚠️ Something went wrong during signup.", {
+            toast.error("Something went wrong during signup.", {
               autoClose: 2500,
             });
           }
@@ -166,12 +166,12 @@ const LoginSignupPage = () => {
         toast.error(`${errorMessage}`, { autoClose: 2500 });
       } else if (error.request) {
         // No response (server might be down)
-        toast.error("⚠️ Server not responding. Please try again later.", {
+        toast.error("Server not responding. Please try again later.", {
           autoClose: 2500,
         });
       } else {
         // Unexpected error
-        toast.error("⚠️ Something went wrong.", { autoClose: 2500 });
+        toast.error("Something went wrong.", { autoClose: 2500 });
       }
     }
   };

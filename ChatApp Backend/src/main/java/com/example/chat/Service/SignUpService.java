@@ -9,8 +9,6 @@ import com.example.chat.Model.User;
 import com.example.chat.Repository.InvitationRepo;
 import com.example.chat.Repository.SignUpRepo;
 
-import jakarta.validation.Valid;
-
 @Service
 public class SignUpService {
 

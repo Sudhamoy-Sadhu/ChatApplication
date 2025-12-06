@@ -15,12 +15,12 @@ public class ContactDTO {
     private String username;
     private String email;
     private String profileImageUrl;
-    private String status; // online/offline/busy
+    private String status;
     private Instant lastSeen;
 
     private String lastMessage;
-    private Instant lastMessageTime;
+    private String lastMessageTime;
 
-    private Long roomId;        // for quick navigation to chatroom
-    private String roomName;    // helpful for display (group/private chat name)
+    private Long roomId;       
+    private String roomName;    
 }

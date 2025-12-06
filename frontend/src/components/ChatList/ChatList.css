@@ -73,11 +73,29 @@
 }
 
 .chat-info .details {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+}
+
+.details-name{
     width: 80%;
     display: flex;
     justify-content: center;
-    align-items: start;
+    align-items: flex-start;
     flex-direction: column;
+    overflow: hidden;
+}
+
+.chat-time{
+    width: 20%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .invite-btn {

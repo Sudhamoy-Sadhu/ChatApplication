@@ -5,10 +5,10 @@ import { ChatContext } from "../ContextAPI/ChatContext";
 import { ModalContext } from "../ContextAPI/ModalContext";
 import { AuthContext } from "../ContextAPI/AuthContext";
 
-
 export default function ChatList() {
   const { selectedContact, setSelectedContact, searchResults, searchQuery } =
     useContext(ChatContext);
+
   const { openInviteModal } = useContext(ModalContext);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,8 +16,6 @@ export default function ChatList() {
   const [sentRequests, setSentRequests] = useState(new Set());
   const { user } = useContext(AuthContext);
   const userLoggedInId = user?.id;
-
-
 
   // Fetch logged-in user's contacts
   useEffect(() => {
@@ -28,7 +26,16 @@ export default function ChatList() {
           "http://localhost:8080/contacts/allContacts",
           { withCredentials: true }
         );
-        setContacts(response.data);
+
+        // Sort by recent message time
+        const sorted = response.data.sort((a, b) => {
+          const t1 = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+          const t2 = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+          return t2 - t1;
+        });
+
+        setContacts(sorted);
+
       } catch (err) {
         setError("Unable to load contacts");
       } finally {
@@ -49,11 +56,12 @@ export default function ChatList() {
       setSentRequests((prev) => new Set(prev).add(targetId));
       alert("Connection request sent!");
     } catch (err) {
-      alert(err.response.data)
+      alert(err.response.data);
       console.error(err);
     }
   };
 
+  // Check pending statuses
   useEffect(() => {
     if (!userLoggedInId || !searchResults || searchResults.length === 0) return;
 
@@ -64,16 +72,13 @@ export default function ChatList() {
         if (!u.id) continue;
 
         try {
-          console.log("Checking status for:", userLoggedInId, u.id);
-
           const response = await axios.get(
             `http://localhost:8080/connection/status/${userLoggedInId}/${u.id}`,
             { withCredentials: true }
           );
 
-          if (response.data === "PENDING") {
-            updatedSet.add(u.id);
-          }
+          if (response.data === "PENDING") updatedSet.add(u.id);
+
         } catch (err) {
           console.error("Status check failed for user:", u.id, err);
         }
@@ -83,15 +88,11 @@ export default function ChatList() {
     };
 
     checkStatuses();
-  }, [userLoggedInId, searchResults]); 
+  }, [userLoggedInId, searchResults]);
 
-
-
-  if (loading)
-    return <div className="chat-list-loading">Loading contacts...</div>;
+  if (loading) return <div className="chat-list-loading">Loading contacts...</div>;
   if (error) return <div className="chat-list-error">{error}</div>;
 
-  // If searching, show search results. Otherwise contacts.
   const displayList = searchQuery ? searchResults : contacts;
 
   if (!displayList || displayList.length === 0) {
@@ -113,25 +114,43 @@ export default function ChatList() {
     <div className="chat-list">
       {displayList.map((user, i) => {
         const isNotFound = user.exists === false;
+        const username = user.username || user.name;
+        const email = user.email;
+        const avatar = user.profileImageUrl || "/assets/default-logo.png";
+        const lastMsg = user.lastMessage || "Start your conversation!";
+        const lastMsgTime = user.lastMessageTime || "";
+
+        const roomId = user.roomId;
+        const roomName = user.roomName || username;
+
         const isContact =
-          !isNotFound && contacts.some((c) => c.email === user.email);
+          !isNotFound &&
+          contacts.some((c) => c.email === user.email);
 
         return (
           <div
             key={i}
             className="chat-item"
-            onClick={() => !isNotFound && isContact && setSelectedContact(user)}
+            onClick={() =>
+              !isNotFound && isContact && setSelectedContact({
+                id: user.id,
+                username,
+                email,
+                avatar,
+                roomId,
+                roomName
+              })
+            }
           >
+            {/* Avatar */}
             <div className="avatar">
-              <img
-                src={user.profilePicture || "/assets/default-logo.png"}
-                alt="profile"
-              />
+              <img src={avatar} alt="profile" />
             </div>
 
+            {/* Chat Info */}
             <div className="chat-info">
               <div className="details">
-                {/*Case 1: USER NOT FOUND */}
+                {/* Case 1: USER NOT FOUND */}
                 {isNotFound ? (
                   <>
                     <h4>User not found</h4>
@@ -139,14 +158,17 @@ export default function ChatList() {
                   </>
                 ) : (
                   <>
-                    {/*Case 2: USER FOUND */}
-                    <h4>{user.username}</h4>
-                    <p>{isContact ? "Already connected" : user.email}</p>
+                    {/* Case 2: USER FOUND / CONTACT */}
+                    <div className="details-name">
+                      <h4>{roomName}</h4>
+                      <p className="last-message">{lastMsg}</p>
+                    </div>
+                    <div className="chat-time">{lastMsgTime}</div>
                   </>
                 )}
               </div>
 
-              {/*BUTTON LOGIC */}
+              {/* BUTTON LOGIC */}
               {searchQuery &&
                 (isNotFound ? (
                   <button
@@ -157,9 +179,11 @@ export default function ChatList() {
                   </button>
                 ) : !isContact ? (
                   <button
-                    className={sentRequests.has(user.id)
-                      ? "connect-btn-sent"
-                      : "connect-btn"}
+                    className={
+                      sentRequests.has(user.id)
+                        ? "connect-btn-sent"
+                        : "connect-btn"
+                    }
                     disabled={sentRequests.has(user.id)}
                     onClick={() => sendRequest(user.id)}
                   >

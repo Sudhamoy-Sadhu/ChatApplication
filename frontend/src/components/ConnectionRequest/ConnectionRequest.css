@@ -81,38 +81,65 @@
 .cr-accept {
     background-color: #4caf50;
     color: #fff;
-}
-
-.cr-accept:hover {
-    background-color: #45a049;
+    padding: 5px 10px;
+    border: 2px solid #4caf50;
+    border-radius: 20px;
+    &:hover{
+        background: #fff;
+        color: #4caf50;
+    }
 }
 
 .cr-reject {
     background-color: #f44336;
     color: #fff;
+    padding: 5px 10px;
+    border: 2px solid #f44336;
+    border-radius: 20px;
+    &:hover{
+        background: #fff;
+        color: #f44336;
+    }
 }
 
-.cr-reject:hover {
-    background-color: #d73833;
-}
 
 .cr-cancel {
     background-color: #ff9800;
     color: #fff;
-}
-
-.cr-cancel:hover {
-    background-color: #e68900;
+    padding: 5px 10px;
+    border: 2px solid #ff9800;
+    border-radius: 20px;
+    &:hover{
+        background: #fff;
+        color: #ff9800;
+    }
 }
 
 .cr-connected {
     color: #4caf50;
     font-weight: 500;
+    padding: 5px 10px;
+    border: 2px solid #4caf50;
+    border-radius: 20px;
+    &:hover{
+        background: #4caf50;
+        color: #fff;
+    }
 }
 
 .cr-rejected {
     color: #f44336;
+    border: 2px solid #f44336;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 10px;
     font-weight: 500;
+    &:hover{
+        background: #f44336;
+        color: #fff;
+    }
 }
 
 .cr-canceled {

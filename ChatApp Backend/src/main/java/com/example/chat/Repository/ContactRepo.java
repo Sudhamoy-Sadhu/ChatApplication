@@ -23,4 +23,7 @@ public interface ContactRepo extends JpaRepository<Contact, Long> {
         WHERE c.user.id = :userId AND c.contactUser.id = :otherId
     """)
     boolean existsConnection(@Param("userId") Long userId, @Param("otherId") Long otherId);
+
+    boolean existsByUser_IdAndContactUser_Id(Long userId, Long contactUserId);
+
 }

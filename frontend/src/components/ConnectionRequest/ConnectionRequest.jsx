@@ -32,14 +32,33 @@ export default function ConnectionRequests() {
                 {},
                 { withCredentials: true }
             );
+            const statusMap = {
+                accept: "ACCEPTED",
+                reject: "REJECTED",
+                cancel: "CANCELLED",
+            };
 
-            // Update UI instantly
-            setRequests((prev) => prev.filter((req) => req.requestId !== requestId));
+            setRequests((prev) =>
+                prev.map((req) =>
+                    req.requestId === requestId
+                        ? { ...req, status: statusMap[action] }
+                        : req
+                )
+            );
         } catch (error) {
             console.log("Action error →", error);
             alert(error.response?.data || "Something went wrong");
         }
     };
+
+    const cancelRequest = async (requestId) => {
+
+        await axios.delete(
+            `http://localhost:8080/connection/cancel/${requestId}`,
+            { withCredentials: true }
+        );
+    }
+
 
     return (
         <div className="cr-wrapper">
@@ -54,12 +73,11 @@ export default function ConnectionRequests() {
                         const isRequester = req.requester.id === loggedInUserId;
                         const isTarget = req.target.id === loggedInUserId;
 
-                        // Display info of the other user
                         const displayUser = isRequester ? req.target : req.requester;
 
                         return (
                             <div key={req.requestId} className="cr-card">
-                                 {/* Request Date */}
+                                {/* Request Date */}
                                 <div className="cr-date">
                                     Requested on
                                     <p>{" "}</p>
@@ -90,7 +108,7 @@ export default function ConnectionRequests() {
                                     {req.status === "PENDING" && isRequester && (
                                         <button
                                             className="cr-btn cr-cancel"
-                                            onClick={() => handleAction(req.requestId, "cancel")}
+                                            onClick={() => cancelRequest(req.requestId)}
                                         >
                                             Cancel Request
                                         </button>
@@ -114,11 +132,11 @@ export default function ConnectionRequests() {
                                     )}
 
                                     {req.status === "ACCEPTED" && (
-                                        <p className="cr-connected">Connected ✔</p>
+                                        <p className="cr-connected">Connected</p>
                                     )}
 
                                     {req.status === "REJECTED" && isTarget && (
-                                        <p className="cr-rejected">Rejected ❌</p>
+                                        <p className="cr-rejected">Rejected</p>
                                     )}
                                 </div>
                             </div>

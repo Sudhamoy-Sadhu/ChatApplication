@@ -17,46 +17,29 @@ public class Contact {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // The owner of the contact list (e.g., current user)
+    // The logged-in user
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // The contact (the friend)
+    // The person who is added as contact
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contact_user_id", nullable = false)
     private User contactUser;
 
-    // Optional chatroom reference (if one exists)
+    // Chat room allocated for the two users
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id")
     private Room room;
 
-    // Basic display info
-    @Column(nullable = false)
-    private String username;
-
-    @Column(nullable = false)
-    private String email;
-
-    private String profileImageUrl;
-
-    @Column(length = 20)
-    private String status; // e.g., "online", "offline", "busy"
-
-    private Instant lastSeen;
-    private String lastMessage;
-    private Instant lastMessageTime;
-
-    @Builder.Default
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
-    @Builder.Default
+    @Column(nullable = false)
     private Instant updatedAt = Instant.now();
 
     @PreUpdate
-    public void preUpdate() {
+    public void onUpdate() {
         this.updatedAt = Instant.now();
     }
 }

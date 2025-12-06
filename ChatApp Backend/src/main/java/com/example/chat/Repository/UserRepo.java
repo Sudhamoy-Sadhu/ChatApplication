@@ -3,7 +3,6 @@ package com.example.chat.Repository;
 import java.util.List;
 import java.util.Optional;
 
-import org.antlr.v4.runtime.atn.SemanticContext.OR;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

@@ -1,18 +1,8 @@
 package com.example.chat.Model;
 
+import jakarta.persistence.*;
+import lombok.*;
 import java.time.Instant;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @Table(name = "rooms")
@@ -28,17 +18,29 @@ public class Room {
     private Long id;
 
     @Column(nullable = false)
-    private String name; // Room name
-
-    @Column(nullable = false)
-    private String type; // "private", "group", etc.
+    private String type; 
 
     @Column(unique = true, nullable = false)
-    private String unique_key;
+    private String uniqueKey;
 
-    private String created_by;
+    @Column(nullable = false)
+    private Long createdBy;
 
-    @Builder.Default
+    private String name;
+
     @Column(nullable = false, updatable = false)
-    private Instant created_at = Instant.now();
+    private Instant createdAt = Instant.now();
+
+    private Instant updatedAt = Instant.now();
+
+    private String lastMessage;
+
+    private Long lastMessageSender; 
+
+    private Instant lastMessageTime;
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = Instant.now();
+    }
 }
