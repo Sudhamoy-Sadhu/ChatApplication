@@ -44,15 +44,24 @@ export default function Sidebar() {
       );
       if (response.status === 200) {
         toast.success("Logged out successfully!", { autoClose: 2000 });
-      setSearchResults([]);
-      setSearchQuery("");
-      goBack();
-      localStorage.removeItem("auth");
-      localStorage.removeItem("user");
-      setTimeout(() => {
-        navigate("/login");
-      }, 2000);
-    }
+        setSearchResults([]);
+        setSearchQuery("");
+        goBack();
+        localStorage.removeItem("auth");
+        localStorage.removeItem("user");
+        document.cookie.split(";").forEach((cookie) => {
+          const eqPos = cookie.indexOf("=");
+          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+          if (name === "userData") {
+            document.cookie = `${name}=; Max-Age=0; path=/`;
+            document.cookie = `${name}=; Max-Age=0; path=/main`;
+            document.cookie = `${name}=; Max-Age=0; path=/chat`;
+          }
+        });
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+      }
     } catch (err) {
       toast.error("Logout Failed");
       console.error("Logout Failed", err);

@@ -6,15 +6,15 @@ import { ModalContext } from "../ContextAPI/ModalContext";
 import { AuthContext } from "../ContextAPI/AuthContext";
 
 export default function ChatList() {
-  const { selectedContact, setSelectedContact, searchResults, searchQuery } =
+  const { contacts, setContacts, selectedContact, setSelectedContact, searchResults, searchQuery } =
     useContext(ChatContext);
 
   const { openInviteModal } = useContext(ModalContext);
-  const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sentRequests, setSentRequests] = useState(new Set());
   const { user } = useContext(AuthContext);
+  //  const { goToPage } = usePageManager();
   const userLoggedInId = user?.id;
 
   // Fetch logged-in user's contacts
@@ -119,7 +119,7 @@ export default function ChatList() {
         const avatar = user.profileImageUrl || "/assets/default-logo.png";
         const lastMsg = user.lastMessage || "Start your conversation!";
         const lastMsgTime = user.lastMessageTime || "";
-
+        const status = user.status || false;
         const roomId = user.roomId;
         const roomName = user.roomName || username;
 
@@ -132,13 +132,15 @@ export default function ChatList() {
             key={i}
             className="chat-item"
             onClick={() =>
+              // goToPage("home")&&
               !isNotFound && isContact && setSelectedContact({
                 id: user.id,
-                username,
+                name: username,
                 email,
-                avatar,
+                pic: avatar,
                 roomId,
-                roomName
+                roomName,
+                online: status
               })
             }
           >

@@ -6,6 +6,7 @@ import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,8 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.chat.DTO.LoginRequestDTO;
 import com.example.chat.DTO.LoginResponseDTO;
 import com.example.chat.Model.User;
-import com.example.chat.Repository.SignUpRepo;
+import com.example.chat.Repository.UserRepo;
 import com.example.chat.Service.JwtService;
+import com.example.chat.Service.UserService;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,12 +34,15 @@ import lombok.Data;
 @CrossOrigin(origins = "${cors.allowed-origins}")
 public class AuthController {
 
-    private final SignUpRepo signUpRepo;
+    private final UserRepo userRepo;
+    private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public AuthController(SignUpRepo signUpRepo, PasswordEncoder passwordEncoder, JwtService jwtService) {
-        this.signUpRepo = signUpRepo;
+    public AuthController(UserRepo userRepo, UserService userService, PasswordEncoder passwordEncoder,
+            JwtService jwtService) {
+        this.userRepo = userRepo;
+        this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -45,7 +50,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequestDTO req,
             HttpServletResponse response) {
-        var userOpt = signUpRepo.findByEmail(req.getEmail());
+        var userOpt = userRepo.findByEmail(req.getEmail());
         if (userOpt.isEmpty())
             return ResponseEntity.status(401).body("User Not Found!");
 
@@ -53,6 +58,8 @@ public class AuthController {
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             return ResponseEntity.status(401).body("Invalid credentials");
         }
+
+        userService.setStatusOnline(user.getId());
 
         // Generate Tokens
         String access = jwtService.createAccessToken(user, Set.of("USER"));
@@ -112,16 +119,16 @@ public class AuthController {
             // Parse old token to get user id
             var jwt = com.nimbusds.jwt.SignedJWT.parse(oldRefresh);
             String subject = jwt.getJWTClaimsSet().getSubject();
-            var user = signUpRepo.findById(Long.valueOf(subject)).orElseThrow();
+            var user = userRepo.findById(Long.valueOf(subject)).orElseThrow();
 
             String newAccess = jwtService.createAccessToken(user, Set.of("USER"));
 
             ResponseCookie cookie = ResponseCookie.from("refresh_token", newRefresh)
                     .httpOnly(true)
-                    .secure(true) // true in production
+                    .secure(true)
                     .path("/auth/refresh")
                     .maxAge(7 * 24 * 3600)
-                    .sameSite("Strict")
+                    .sameSite("None")
                     .build();
             response.addHeader("Set-Cookie", cookie.toString());
 
@@ -133,10 +140,16 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request,
-            HttpServletResponse response) {
+            HttpServletResponse response, Authentication authentication) {
+
+        if (authentication == null) {
+            return ResponseEntity.status(401)
+                    .body(Map.of("message", "Session expired", "status", "session_expired"));
+        }
+
+        Long id = Long.valueOf(authentication.getName());
 
         String refresh = null;
-
         // Extract refresh_token from cookies
         if (request.getCookies() != null) {
             for (Cookie c : request.getCookies()) {
@@ -151,6 +164,8 @@ public class AuthController {
         if (refresh != null) {
             jwtService.revokeRefreshToken(refresh);
         }
+
+        userService.setStatusOffline(id);
 
         // 🔥 Clear REFRESH TOKEN COOKIE
         ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")

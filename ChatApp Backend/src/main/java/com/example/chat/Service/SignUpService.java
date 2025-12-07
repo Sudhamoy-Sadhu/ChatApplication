@@ -7,13 +7,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.chat.DTO.SignUpDTO;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.InvitationRepo;
-import com.example.chat.Repository.SignUpRepo;
+import com.example.chat.Repository.UserRepo;
 
 @Service
 public class SignUpService {
 
     @Autowired
-    private SignUpRepo signUpRepo;
+    private UserRepo userRepo;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -39,10 +39,10 @@ public class SignUpService {
             });
         }
 
-        if (signUpRepo.existsByUsername(signUpDTO.getUsername())) {
+        if (userRepo.existsByUsername(signUpDTO.getUsername())) {
             throw new IllegalArgumentException("Username Already exists");
         }
-        if (signUpRepo.existsByEmail(signUpDTO.getEmail())) {
+        if (userRepo.existsByEmail(signUpDTO.getEmail())) {
             throw new IllegalArgumentException("Email already registered, login to continue");
         }
         if (!signUpDTO.getPassword().equals(signUpDTO.getConfirmPassword())) {
@@ -54,6 +54,6 @@ public class SignUpService {
         user.setEmail(signUpDTO.getEmail());
         user.setPassword(passwordEncoder.encode(signUpDTO.getPassword()));
 
-        signUpRepo.save(user);
+        userRepo.save(user);
     }
 }

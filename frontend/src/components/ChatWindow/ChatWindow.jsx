@@ -14,25 +14,7 @@ import { toast, ToastContainer } from "react-toastify";
 export default function ChatWindow() {
   const { selectedContact } = useContext(ChatContext);
   console.log(selectedContact);
-  const [messages, setMessages] = useState([
-    {
-      sender: "Alice",
-      text: "Hello there!",
-      timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
-        ' ' +
-        new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    },
-    { sender: "You", text: "Hi Alice!" },
-    {
-      sender: "Alice",
-      text: "How are you?",
-      timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
-        ' ' +
-        new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    },
-    { sender: "You", text: "I am good you?" }, // dynamic
-    { sender: "You", text: "Btw do I know you?" } // dynamic
-  ]);
+  const [messages, setMessages] = useState([]);
 
   const [newMessage, setNewMessage] = useState("");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
@@ -97,7 +79,7 @@ export default function ChatWindow() {
           <div className="avatar"><img src={selectedContact.pic} alt=""></img></div>
           <h3>
             {selectedContact.name}
-            <span>(<GoDotFill className={`online ${selectedContact.online === true ? false : "offline"}`} /> {selectedContact.online === true ? "Online" : "Offline"} )</span>
+            <span>(<GoDotFill className={`online ${selectedContact.online === "ACTIVE" ? "" : "offline"}`} /> {`${selectedContact.online === "ACTIVE" ? "Online" : "Offline"}`} )</span>
           </h3>
         </div>
         <div className="chat-actions">

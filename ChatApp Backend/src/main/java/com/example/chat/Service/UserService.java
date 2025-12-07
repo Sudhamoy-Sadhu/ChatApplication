@@ -15,6 +15,8 @@ import com.example.chat.Model.User;
 import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
 
+import jakarta.transaction.Transactional;
+
 @Service
 public class UserService {
 
@@ -37,12 +39,11 @@ public class UserService {
         if (users.isEmpty()) {
             return List.of(new UserSearchDTO(
                     null,
-                    null, 
-                    query, 
-                    null, 
-                    false, 
-                    false
-            ));
+                    null,
+                    query,
+                    null,
+                    false,
+                    false));
         }
 
         return users.stream()
@@ -53,9 +54,8 @@ public class UserService {
                             user.getUsername(),
                             user.getEmail(),
                             user.getProfilePicture(),
-                            true, 
-                            connected 
-                    );
+                            true,
+                            connected);
                 })
                 .collect(Collectors.toList());
     }
@@ -95,6 +95,20 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         user.setPassword(passwordEncoder.encode(forgotPassDTO.getNewPassword()));
+        userRepo.save(user);
+    }
+
+    @Transactional
+    public void setStatusOnline(Long id) {
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setStatus(User.Status.ACTIVE);
+        userRepo.save(user);
+    }
+
+    @Transactional
+    public void setStatusOffline(Long id) {
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setStatus(User.Status.INACTIVE);
         userRepo.save(user);
     }
 

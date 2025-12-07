@@ -8,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
+
   useEffect(() => {
     const accessToken = Cookies.get("access_token");
     const userData = Cookies.get("userData");
@@ -45,9 +46,19 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+
+  
+  const contextValue = {
+    token,
+    isAuthenticated,
+    user,
+    login,
+    logout
+  }
+
   return (
     <AuthContext.Provider
-      value={{ token, isAuthenticated, user, login, logout }}
+      value={contextValue}
     >
       {children}
     </AuthContext.Provider>
