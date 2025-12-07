@@ -23,8 +23,8 @@
 
 .chat-item {
     display: flex;
-    justify-content: flex-start;
-    align-items: flex-start;
+    justify-content: center;
+    align-items: center;
     width: 100%;
     color: white;
     /* background: red; */
@@ -35,6 +35,13 @@
         background: #1452825c;
     }
 
+}
+
+.last-message{
+    width: 80%; 
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .chat-item .avatar {
@@ -66,7 +73,6 @@
     width: 80%;
     height: 100%;
     font-family: "Akatab", sans-serif;
-    font-weight: 700;
     font-style: normal;
     box-sizing: border-box;
     gap: 5px;
@@ -76,7 +82,7 @@
     width: 100%;
     display: flex;
     justify-content: space-between;
-    align-items: start;
+    align-items: center;
 }
 
 .details-name{
@@ -91,9 +97,6 @@
 .chat-time{
     width: 20%;
     height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     font-size: 12px;
     font-weight: 500;
 }

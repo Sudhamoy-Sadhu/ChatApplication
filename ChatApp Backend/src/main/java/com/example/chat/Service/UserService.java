@@ -14,7 +14,6 @@ import com.example.chat.DTO.UserSearchDTO;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
-
 import jakarta.transaction.Transactional;
 
 @Service
@@ -111,5 +110,4 @@ public class UserService {
         user.setStatus(User.Status.INACTIVE);
         userRepo.save(user);
     }
-
 }

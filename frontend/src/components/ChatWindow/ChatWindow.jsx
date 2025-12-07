@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useContext } from "react";
 import "./ChatWindow.css";
+import axios from "axios";
 import { IoCall } from "react-icons/io5";
 import { FaVideo } from "react-icons/fa";
 import { BsThreeDotsVertical } from "react-icons/bs";
@@ -10,18 +11,40 @@ import { ChatContext } from "../ContextAPI/ChatContext";
 import { MdEmojiEmotions } from "react-icons/md";
 import 'emoji-picker-element';
 import { toast, ToastContainer } from "react-toastify";
+import { AuthContext, useAuth } from "../ContextAPI/AuthContext";
 
 export default function ChatWindow() {
   const { selectedContact } = useContext(ChatContext);
   console.log(selectedContact);
   const [messages, setMessages] = useState([]);
+  const { user } = useContext(AuthContext);
+  const currentUserId = user?.id;
 
   const [newMessage, setNewMessage] = useState("");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
 
-  // 👇 refs for scrolling
   const chatEndRef = useRef(null);
   const emojiPickerRef = useRef(null);
+
+  useEffect(() => {
+    if (!selectedContact) return;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:8080/messages/${selectedContact.roomId}`,
+          { withCredentials: true }
+        );
+        setMessages(response.data);
+      } catch (err) {
+        console.error("Error loading messages:", err);
+        toast.error("Failed to load messages");
+      }
+    };
+
+    fetchMessages();
+  }, [selectedContact]);
+
 
   // scroll to bottom on mount + new message
   useEffect(() => {
@@ -43,17 +66,6 @@ export default function ChatWindow() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [emojiPickerVisible]);
 
-  const sendMessage = () => {
-    if (newMessage.trim() && selectedContact) {
-      const newMsg = {
-        sender: "You",
-        text: newMessage,
-        timestamp: new Date().toLocaleString()
-      };
-      setMessages((prev) => [...prev, newMsg]);
-      setNewMessage("");
-    }
-  };
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") sendMessage();
@@ -61,15 +73,41 @@ export default function ChatWindow() {
 
   if (!selectedContact)
     return <div className="chat-window-placeholder">
-      {/* <img src="/assets/chatting.avif" alt=""/> */}
-      {/* <img src="/assets/SecureChatting.png" alt=""/> */}
       <img src="/assets/77881.jpg" alt="" />
       <p>Select a contact to start chat</p>
-    </div>;
+    </div>
 
   const addEmoji = (emoji) => {
     setNewMessage((prev) => prev + emoji.unicode);
   };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedContact) return;
+
+    try {
+      const payload = {
+        roomId: selectedContact.roomId,
+        senderId: selectedContact.idOfCurrentUser, // adjust this
+        content: newMessage
+      };
+
+      const response = await axios.post(
+        "http://localhost:8080/messages/send",
+        payload,
+        { withCredentials: true }
+      );
+
+      // Push the saved message into local UI
+      setMessages(prev => [...prev, response.data]);
+
+      setNewMessage("");
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to send message");
+    }
+  };
+
 
   return (
     <div className="chat-container">
@@ -90,25 +128,39 @@ export default function ChatWindow() {
       </div>
 
       <div className="chat-messages">
+
+        {/* KEEP THIS */}
         <div className="new-chat">
-          <span><img src={selectedContact.pic} alt=""></img></span>
+          <span><img src={selectedContact.pic} alt="" /></span>
           <h2>{selectedContact.name}</h2>
           <p>Start Chatting with {selectedContact.name} by Sending Hi!</p>
           <button>Send Hello</button>
         </div>
 
-        {messages.map((msg, idx) => (
-          <>
-            <span className={`${msg.sender === "You" ? "senttime" : "receivedtime"}`}>
-              {msg.sender === "You"
-                ? `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
-                : msg.timestamp || ""}
-            </span>
-            <div key={idx} className={`${msg.sender === "You" ? "sent" : "received"}`}>
-              <p>{msg.text}</p>
+        {/* FIXED MESSAGE LOOP */}
+        {messages.map((msg, idx) => {
+          const isSentByMe = msg.senderId === currentUserId;
+
+          return (
+            <div key={idx} className={isSentByMe ? "sent-wrapper" : "received-wrapper"}>
+
+              <span className={isSentByMe ? "senttime" : "receivedtime"}>
+                {new Date(msg.sentAt).toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                })}
+              </span>
+
+              <div className={isSentByMe ? "sent" : "received"}>
+                <p>{msg.content}</p>
+              </div>
+
             </div>
-          </>
-        ))}
+          );
+        })}
 
         {/* 👇 invisible anchor to auto-scroll */}
         <div ref={chatEndRef} />
@@ -131,20 +183,20 @@ export default function ChatWindow() {
             onKeyPress={handleKeyPress}
           />
           {emojiPickerVisible && (
-          <div
-            className="emoji-picker-wrapper"
-            ref={emojiPickerRef}
-            onClick={(e) => e.stopPropagation()}>
-            <emoji-picker
-              onemoji-click={(e) => addEmoji(e.detail)}
-            ></emoji-picker>
-          </div>
+            <div
+              className="emoji-picker-wrapper"
+              ref={emojiPickerRef}
+              onClick={(e) => e.stopPropagation()}>
+              <emoji-picker
+                onemoji-click={(e) => addEmoji(e.detail)}
+              ></emoji-picker>
+            </div>
           )}
-        <span className="mic"><MdKeyboardVoice /></span>
+          <span className="mic"><MdKeyboardVoice /></span>
         </div>
         <button className="send" onClick={sendMessage}>➤</button>
       </div>
-       <ToastContainer position="top-right" autoClose={2000} theme="light" />
+      <ToastContainer position="top-right" autoClose={2000} theme="light" />
     </div>
   );
 }

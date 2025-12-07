@@ -4,6 +4,7 @@ import "./ChatList.css";
 import { ChatContext } from "../ContextAPI/ChatContext";
 import { ModalContext } from "../ContextAPI/ModalContext";
 import { AuthContext } from "../ContextAPI/AuthContext";
+import { usePageManager } from "../ContextAPI/PageManagerContext";
 
 export default function ChatList() {
   const { contacts, setContacts, selectedContact, setSelectedContact, searchResults, searchQuery } =
@@ -14,7 +15,7 @@ export default function ChatList() {
   const [error, setError] = useState(null);
   const [sentRequests, setSentRequests] = useState(new Set());
   const { user } = useContext(AuthContext);
-  //  const { goToPage } = usePageManager();
+   const { goToPage } = usePageManager();
   const userLoggedInId = user?.id;
 
   // Fetch logged-in user's contacts
@@ -132,7 +133,6 @@ export default function ChatList() {
             key={i}
             className="chat-item"
             onClick={() =>
-              // goToPage("home")&&
               !isNotFound && isContact && setSelectedContact({
                 id: user.id,
                 name: username,
@@ -141,6 +141,7 @@ export default function ChatList() {
                 roomId,
                 roomName,
                 online: status
+                && goToPage("home")
               })
             }
           >
