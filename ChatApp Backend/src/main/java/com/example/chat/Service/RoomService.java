@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -77,4 +78,22 @@ public class RoomService {
 
         roomRepository.save(room);
     }
+
+    public List<Long> getRoomParticipants(Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+
+        // PRIVATE ROOM
+        if (room.getType().equals("PRIVATE")) {
+            String[] parts = room.getUniqueKey().split("_");
+            Long userA = Long.parseLong(parts[0]);
+            Long userB = Long.parseLong(parts[1]);
+            return List.of(userA, userB);
+        }
+
+        // GROUP ROOM SUPPORT (optional)
+        // TODO: fetch group members if you support it
+        throw new RuntimeException("Group participants not implemented");
+    }
+
 }

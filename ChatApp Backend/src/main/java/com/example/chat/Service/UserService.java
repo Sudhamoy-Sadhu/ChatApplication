@@ -2,9 +2,11 @@ package com.example.chat.Service;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +32,9 @@ public class UserService {
 
     @Autowired
     private OtpService otpService;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     public List<UserSearchDTO> searchUsers(String query, Long loggedInUserId) {
 
@@ -102,6 +107,7 @@ public class UserService {
         User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
         user.setStatus(User.Status.ACTIVE);
         userRepo.save(user);
+        broadcastStatusChange(user);
     }
 
     @Transactional
@@ -109,5 +115,19 @@ public class UserService {
         User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
         user.setStatus(User.Status.INACTIVE);
         userRepo.save(user);
+        broadcastStatusChange(user);
+    }
+
+    public void broadcastStatusChange(User user) {
+        var dto = Map.of(
+                "type", "STATUS_CHANGE",
+                "userId", user.getId(),
+                "status", user.getStatus().name());
+
+        List<Long> contacts = contactRepo.findAllFriendIds(user.getId());
+
+        for (Long cId : contacts) {
+            messagingTemplate.convertAndSend("/topic/chatlist/" + cId, dto);
+        }
     }
 }

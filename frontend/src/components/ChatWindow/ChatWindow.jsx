@@ -11,47 +11,25 @@ import { ChatContext } from "../ContextAPI/ChatContext";
 import { MdEmojiEmotions } from "react-icons/md";
 import 'emoji-picker-element';
 import { toast, ToastContainer } from "react-toastify";
-import { AuthContext, useAuth } from "../ContextAPI/AuthContext";
+import { AuthContext } from "../ContextAPI/AuthContext";
+import { SocketContext } from "../ContextAPI/SocketContext";
 
 export default function ChatWindow() {
-  const { selectedContact } = useContext(ChatContext);
-  console.log(selectedContact);
+  const { contacts, selectedContact, setSelectedContact } = useContext(ChatContext);
   const [messages, setMessages] = useState([]);
   const { user } = useContext(AuthContext);
   const currentUserId = user?.id;
-
   const [newMessage, setNewMessage] = useState("");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
-
   const chatEndRef = useRef(null);
   const emojiPickerRef = useRef(null);
+  const { client, connected } = useContext(SocketContext);
 
-  useEffect(() => {
-    if (!selectedContact) return;
+  const isOnline = selectedContact?.status === "ACTIVE";
 
-    const fetchMessages = async () => {
-      try {
-        const response = await axios.get(
-          `http://localhost:8080/messages/${selectedContact.roomId}`,
-          { withCredentials: true }
-        );
-        setMessages(response.data);
-      } catch (err) {
-        console.error("Error loading messages:", err);
-        toast.error("Failed to load messages");
-      }
-    };
+  const safeImage = (url) => url || "/assets/default-logo.png";
 
-    fetchMessages();
-  }, [selectedContact]);
-
-
-  // scroll to bottom on mount + new message
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, selectedContact]);
-
-  useEffect(() => {
+   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         emojiPickerVisible &&
@@ -66,28 +44,67 @@ export default function ChatWindow() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [emojiPickerVisible]);
 
+  // Update header if status changes
+  useEffect(() => {
+    if (!selectedContact) return;
+
+    const updated = contacts.find(c => c.id === selectedContact.id);
+    if (updated) {
+      setSelectedContact(prev => ({
+        ...prev,
+        status: updated.status,
+        profileImageUrl: safeImage(updated.profileImageUrl ?? prev.profileImageUrl)
+      }));
+    }
+  }, [contacts]);
+
+  // Subscribe to room messages
+  useEffect(() => {
+    if (!selectedContact || !connected || !client) return;
+
+    const sub = client.subscribe(
+      `/topic/room/${selectedContact.roomId}`,
+      (msg) => {
+        setMessages(prev => [...prev, JSON.parse(msg.body)]);
+      }
+    );
+
+    return () => sub.unsubscribe();
+  }, [selectedContact, connected, client]);
+
+  // Load history
+  useEffect(() => {
+    if (!selectedContact) return;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:8080/messages/${selectedContact.roomId}`,
+          { withCredentials: true }
+        );
+        setMessages(response.data);
+      } catch (err) {
+        toast.error("Failed to load messages");
+      }
+    };
+
+    fetchMessages();
+  }, [selectedContact]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") sendMessage();
   };
 
-  if (!selectedContact)
-    return <div className="chat-window-placeholder">
-      <img src="/assets/77881.jpg" alt="" />
-      <p>Select a contact to start chat</p>
-    </div>
-
-  const addEmoji = (emoji) => {
-    setNewMessage((prev) => prev + emoji.unicode);
-  };
-
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedContact) return;
+    if (!newMessage.trim()) return;
 
     try {
       const payload = {
         roomId: selectedContact.roomId,
-        senderId: selectedContact.idOfCurrentUser, // adjust this
         content: newMessage
       };
 
@@ -97,15 +114,25 @@ export default function ChatWindow() {
         { withCredentials: true }
       );
 
-      // Push the saved message into local UI
       setMessages(prev => [...prev, response.data]);
-
       setNewMessage("");
 
     } catch (err) {
-      console.error(err);
       toast.error("Failed to send message");
     }
+  };
+
+  if (!selectedContact) {
+    return (
+      <div className="chat-window-placeholder">
+        <img src="/assets/77881.jpg" alt="" />
+        <p>Select a contact to start chat</p>
+      </div>
+    );
+  }
+
+  const addEmoji = (emoji) => {
+    setNewMessage((prev) => prev + emoji.unicode);
   };
 
 
@@ -113,11 +140,17 @@ export default function ChatWindow() {
     <div className="chat-container">
 
       <div className="chat-header">
-        <div key={selectedContact.id} className="sender-info">
-          <div className="avatar"><img src={selectedContact.pic} alt=""></img></div>
+        <div className="sender-info">
+          <div className="avatar">
+            <img src={selectedContact.profileImageUrl || "/assets/default-logo.png"} alt=""></img>
+          </div>
+
           <h3>
-            {selectedContact.name}
-            <span>(<GoDotFill className={`online ${selectedContact.online === "ACTIVE" ? "" : "offline"}`} /> {`${selectedContact.online === "ACTIVE" ? "Online" : "Offline"}`} )</span>
+            {selectedContact.username}
+            <span>
+              (<GoDotFill className={`online ${isOnline ? "" : "offline"}`} />
+              {isOnline ? "Online" : "Offline"} )
+            </span>
           </h3>
         </div>
         <div className="chat-actions">
@@ -129,15 +162,13 @@ export default function ChatWindow() {
 
       <div className="chat-messages">
 
-        {/* KEEP THIS */}
         <div className="new-chat">
-          <span><img src={selectedContact.pic} alt="" /></span>
-          <h2>{selectedContact.name}</h2>
-          <p>Start Chatting with {selectedContact.name} by Sending Hi!</p>
+          <span><img src={selectedContact.profileImageUrl || "/assets/default-logo.png"} alt="" /></span>
+          <h2>{selectedContact.username}</h2>
+          <p>Start Chatting with {selectedContact.username} by sending Hi!</p>
           <button>Send Hello</button>
         </div>
 
-        {/* FIXED MESSAGE LOOP */}
         {messages.map((msg, idx) => {
           const isSentByMe = msg.senderId === currentUserId;
 
@@ -162,19 +193,19 @@ export default function ChatWindow() {
           );
         })}
 
-        {/* 👇 invisible anchor to auto-scroll */}
         <div ref={chatEndRef} />
       </div>
 
       <div className="chat-input">
         <span className="add-files"><IoMdAdd /></span>
+
         <div className="chat-input-emoji-input">
-          <span className="emoji-button" onClick={(e) => {
-            e.stopPropagation();
-            setEmojiPickerVisible((prev) => !prev);
-          }}>
+          <span className="emoji-button"
+            onClick={(e) => { e.stopPropagation(); setEmojiPickerVisible((prev) => !prev) }}
+          >
             <MdEmojiEmotions />
           </span>
+
           <input
             type="text"
             placeholder="Type your message..."
@@ -182,6 +213,7 @@ export default function ChatWindow() {
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
           />
+
           {emojiPickerVisible && (
             <div
               className="emoji-picker-wrapper"
@@ -192,10 +224,13 @@ export default function ChatWindow() {
               ></emoji-picker>
             </div>
           )}
+
           <span className="mic"><MdKeyboardVoice /></span>
         </div>
+
         <button className="send" onClick={sendMessage}>➤</button>
       </div>
+
       <ToastContainer position="top-right" autoClose={2000} theme="light" />
     </div>
   );

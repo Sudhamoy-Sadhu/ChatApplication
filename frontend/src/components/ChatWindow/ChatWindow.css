@@ -180,10 +180,11 @@
 
 .chat-messages p {
     /* background: red; */
-    border-radius: 18px;
-    width: 100%;
-    height: 100%;
-    text-wrap: wrap;
+    max-width: 100%;
+    width: auto;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap;
 }
 
 .chat-messages .received {
@@ -246,93 +247,101 @@
 
 }
 
+/* 🟢 Main Chat Input Container */
 .chat-input {
     display: flex;
-    justify-content: space-evenly;
     align-items: center;
-    background: #214C79;
-    padding: 5px;
-    height: auto;
+    gap: 10px;
+    background: #214C79; /* WhatsApp light gray */
+    padding: 10px;
+    border-top: 1px solid #214C79;
+    position: relative;
 }
 
-.chat-input .add-files {
-    color: white;
-    font-size: 25px;
+/* 🟢 Add File Icon */
+.add-files {
+    color: #fff;
+    font-size: 24px;
     cursor: pointer;
-    width: 3%;
-    height: 100%;
     display: flex;
-    justify-content: center;
     align-items: center;
 }
 
+/* 🟢 Middle White Bubble (Input + Emoji + Mic) */
 .chat-input-emoji-input {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 70%;
-    height: 100%;
-    border-radius: 20px;
-    box-sizing: border-box;
-}
-.chat-input-emoji-input .emoji-button{
-    height: 10%;
-    width: 10%;
-    border-radius: 20px 0px 0px 20px;
-    /* background: green; */
-}
-.chat-input-emoji-input .mic{
-    border-radius: 0px 20px 20px 0px;
-
-}
-
-.emoji-picker-wrapper {
-    position: absolute;
-    bottom: 60px;
-    left: 400px;
-    border-radius: 10px;
-    z-index: 1000;
-    overflow: hidden;
+    flex: 1;
     background: white;
-}
-
-
-.chat-input input {
     display: flex;
-    height: 50%;
-    justify-content: center;
     align-items: center;
-    border: none;
-    padding: 20px;
-    outline: none;
-    width: 80%;
-    font-size: 15px;
-    background: white;
+    border-radius: 25px;
+    padding: 8px 12px;
+    gap: 10px;
+    border: 1px solid #e1e1e1;
+    height: 5vh;
 }
 
+/* 🟢 Emoji + Mic Buttons */
 .chat-input-emoji-input span {
-    height: 50%;
-    background: white;
+    font-size: 22px;
+    color: #54656f;
+    cursor: pointer;
     display: flex;
-    justify-content: center;
     align-items: center;
+}
+
+/* 🟢 Text Input */
+.chat-input input {
+    flex: 1;
     border: none;
-    padding: 20px;
     outline: none;
-    width: 10%;
-    font-size: 25px;
+    font-size: 15px;
+    padding: 8px 5px;
+    background: transparent;
+    color: #111b21;
+}
+
+/* 🟢 Send Button */
+.send {
+    background: #fff;
+    border: none;
+    padding: 10px 14px;
+    font-size: 18px;
     color: #000;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 5vh;
 }
 
-.chat-input .send {
-    border: none;
-    width: 3rem;
-    height: 2rem;
-    cursor: pointer;
-    width: 5%;
-
+/* 🟢 SEND BUTTON hover */
+.send:hover {
+    color: #356a96;
 }
+
+/* 🟡 Emoji Picker */
+.emoji-picker-wrapper {
+    position: absolute;
+    bottom: 65px;
+
+    left: 60px;
+    z-index: 1000;
+    border-radius: 10px;
+    background: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+
+/* (Optional) improve appear animation */
+.emoji-picker-wrapper {
+    animation: fadeIn 0.15s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 
 .chat-window-placeholder {
     min-height: 100vh;

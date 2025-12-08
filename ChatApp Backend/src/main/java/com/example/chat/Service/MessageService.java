@@ -27,7 +27,6 @@ public class MessageService {
 
         Message saved = messageRepository.save(msg);
 
-        // Update last message in room
         roomService.updateLastMessage(roomId, senderId, content);
 
         return saved;

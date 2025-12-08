@@ -1,17 +1,21 @@
 package com.example.chat.Config;
 
-import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import com.example.chat.Service.JwtService;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class UserHandshakeInterceptor implements HandshakeInterceptor {
@@ -21,48 +25,66 @@ public class UserHandshakeInterceptor implements HandshakeInterceptor {
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request,
-                                   ServerHttpResponse response,
-                                   WebSocketHandler wsHandler,
-                                   @Nullable Map<String, Object> attributes) {
+            ServerHttpResponse response,
+            WebSocketHandler wsHandler,
+            @Nullable Map<String, Object> attributes) {
 
-        String query = request.getURI().getQuery();
-        String username = "Anonymous";
+        if (!(request instanceof ServletServerHttpRequest servletRequest)) {
+            return false;
+        }
+
+        HttpServletRequest req = servletRequest.getServletRequest();
         String token = null;
 
-        if (query != null) {
-            // simple parse token=... from query string
-            for (String param : query.split("&")) {
-                if (param.startsWith("token=")) {
-                    token = param.substring("token=".length());
-                    // token may be URL-encoded
-                    token = java.net.URLDecoder.decode(token, StandardCharsets.UTF_8);
+        if (req.getCookies() != null) {
+            for (Cookie c : req.getCookies()) {
+                if ("access_token".equals(c.getName())) {
+                    token = c.getValue();
                     break;
                 }
             }
         }
 
-        if (token != null && jwtService.validateAccessToken(token)) {
-            String sub = jwtService.extractUsername(token);
-            if (sub != null) {
-                // use subject as principal name. Convert or map ID->username if needed.
-                username = sub;
-            }
-        } else {
-            // token missing or invalid -> keep Anonymous (dev behavior)
-            // If you want to refuse handshake for invalid token, return false here.
+        if (token == null || token.isBlank()) {
+            // no token -> reject handshake (or you can allow anonymous connections if you
+            // prefer)
+            System.out.println("❌ NO JWT IN COOKIE → Reject WebSocket");
+            return false;
         }
 
-        if (attributes != null) {
-            attributes.put("username", username);
+        if (token != null) {
+            System.out.println("🔐 JWT FOUND in WebSocket handshake: " + token.substring(0, 20) + "...");
         }
+
+        // extract subject (user id) using existing method
+        String subject = jwtService.extractUsername(token);
+        if (subject == null) {
+            System.out.println("❌ Invalid JWT → Reject WebSocket");
+            return false;
+        }
+
+        Long userId;
+        try {
+            userId = Long.valueOf(subject);
+        } catch (NumberFormatException ex) {
+            System.out.println("❌ Invalid subject in JWT: " + subject);
+            return false;
+        }
+
+        // ensure attributes map exists and store userId
+        if (attributes == null) {
+            attributes = new HashMap<>();
+        }
+        attributes.put("userId", userId);
 
         return true;
     }
 
     @Override
     public void afterHandshake(ServerHttpRequest request,
-                               ServerHttpResponse response,
-                               WebSocketHandler wsHandler,
-                               @Nullable Exception exception) {
+            ServerHttpResponse response,
+            WebSocketHandler wsHandler,
+            @Nullable Exception exception) {
+        // no-op
     }
 }
