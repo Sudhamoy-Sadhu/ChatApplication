@@ -38,6 +38,7 @@
 }
 
 .last-message{
+    font-size: smaller;
     width: 80%; 
     white-space: nowrap;
     overflow: hidden;
@@ -95,10 +96,13 @@
 }
 
 .chat-time{
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 20%;
     height: 100%;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 400;
 }
 
 .invite-btn {

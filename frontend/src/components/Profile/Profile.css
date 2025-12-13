@@ -1,0 +1,110 @@
+.profile-main {
+    width: 100%;
+    margin: 0 auto;
+    padding: 25px;
+    box-sizing: border-box;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    font-family: 'Inter', sans-serif;
+}
+
+.profile-img-div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.profile-img-div img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #e5e7eb;
+}
+
+.profile-img-div button {
+    margin-top: 12px;
+    padding: 8px 14px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.profile-img-div button:hover {
+    background: #0069d9;
+}
+
+.profile-name {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.profile-name h1 {
+    font-size: 22px;
+    margin: 0;
+    font-weight: 600;
+    color: #333;
+}
+
+.profile-email {
+    font-size: 14px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.profile-section {
+    margin-bottom: 22px;
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-section label {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.profile-section textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    resize: none;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+.profile-section textarea:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.profile-section small {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #777;
+    text-align: right;
+}
+
+.profile-section select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.profile-section select:focus {
+    border-color: #007bff;
+    outline: none;
+}

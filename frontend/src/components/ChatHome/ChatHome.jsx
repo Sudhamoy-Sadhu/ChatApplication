@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import "./ChatHome.css";
 import Sidebar from "../Sidebar/Sidebar.jsx";
 import ChatList from "../ChatList/ChatList.jsx";
@@ -8,6 +8,7 @@ import InviteModal from "../Modals/InviteModal/InviteModal.jsx";
 import { ToastContainer } from "react-toastify";
 import { usePageManager } from "../ContextAPI/PageManagerContext.jsx";
 import ConnectionRequest from "../ConnectionRequest/ConnectionRequest.jsx";
+import Profile from "../Profile/Profile.jsx"
 
 
 export default function ChatHome() {
@@ -27,7 +28,7 @@ export default function ChatHome() {
         <div className="chat-window">
           {activePage ==="request" && <ConnectionRequest />}
           {activePage ==="setting" && <ConnectionRequest />}
-          {activePage ==="profile" && <ConnectionRequest />}
+          {activePage ==="profile" && <Profile />}
           {activePage ==="home" && <ChatWindow/>}
         </div>
       </div>

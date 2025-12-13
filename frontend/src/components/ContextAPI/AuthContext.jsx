@@ -1,65 +1,112 @@
 import React, { createContext, useState, useEffect } from "react";
+import axios from "axios";
 import Cookies from "js-cookie";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-
+  // ================================
+  // Axios interceptor for 401 errors
+  // ================================
   useEffect(() => {
-    const accessToken = Cookies.get("access_token");
-    const userData = Cookies.get("userData");
+    const interceptor = axios.interceptors.response.use(
+      (res) => res,
+      async (error) => {
+        const originalRequest = error.config;
 
-    if (accessToken) {
-      setToken(accessToken);
-      setUser(userData ? JSON.parse(userData) : null);
-      setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(false);
-    }
+        if (!originalRequest || !originalRequest.url) return Promise.reject(error);
+
+        // Only retry if user is logged in
+        if (!isAuthenticated) return Promise.reject(error);
+
+        // Avoid infinite loop
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes("/auth/refresh")) {
+          originalRequest._retry = true;
+          try {
+            await axios.post("http://localhost:8080/auth/refresh", {}, { withCredentials: true });
+            return axios(originalRequest);
+          } catch (_) {
+            await handleLogout();
+            return Promise.reject(error);
+          }
+        }
+
+        return Promise.reject(error);
+      }
+    );
+
+    return () => axios.interceptors.response.eject(interceptor);
+  }, [isAuthenticated]);
+
+  // ================================
+  // Initialize auth on app load
+  // ================================
+  useEffect(() => {
+    const initializeAuth = async () => {
+      setLoading(true);
+      const userData = Cookies.get("userData");
+
+      if (!userData) {
+        setIsAuthenticated(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Try to refresh access_token if expired
+        await axios.post("http://localhost:8080/auth/refresh", {}, { withCredentials: true });
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        setUserId(parsedUser.id);
+        setIsAuthenticated(true);
+      } catch (_) {
+        // Refresh failed → logout
+        await handleLogout();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
-  // 🔥 LOGIN — now only accessToken + userData
-  const login = (accessToken, userData) => {
-    Cookies.set("access_token", accessToken, { expires: 1, secure: false });
-    Cookies.set("userData", JSON.stringify(userData), {
-      expires: 1,
-      secure: false,
-    });
+  // ================================
+  // Login
+  // ================================
+  const login = (userData) => {
+    const normalizedUser = {
+      id: Number(userData.id),
+      username: userData.username,
+      email: userData.email,
+      status: userData.status,
+    };
 
-    setToken(accessToken);
-    setUser(userData);
+    Cookies.set("userData", JSON.stringify(normalizedUser), { expires: 1 });
+    setUser(normalizedUser);
     setIsAuthenticated(true);
   };
 
-  // 🔥 LOGOUT
-  const logout = () => {
-    Cookies.remove("access_token");
-    Cookies.remove("userData");
 
-    // refresh_token cookie is HttpOnly; backend will clear it during /logout
-    setToken(null);
+  // ================================
+  // Logout
+  // ================================
+  const handleLogout = async () => {
+    try {
+      await axios.post("http://localhost:8080/auth/logout", {}, { withCredentials: true });
+    } catch (_) { }
+    Cookies.remove("userData");
     setUser(null);
+    setUserId(null);
     setIsAuthenticated(false);
   };
 
-
-  
-  const contextValue = {
-    token,
-    isAuthenticated,
-    user,
-    login,
-    logout
-  }
-
   return (
-    <AuthContext.Provider
-      value={contextValue}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout: handleLogout, loading }}>
       {children}
     </AuthContext.Provider>
   );

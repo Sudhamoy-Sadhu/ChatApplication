@@ -105,11 +105,11 @@ const LoginSignupPage = () => {
         const response = await axios.post("http://localhost:8080/auth/login", {
           email: formData.email,
           password: formData.password,
-        });
+        }, { withCredentials: true });
 
-        const { id, accessToken, username, email, status } = response.data;
+        const { id, username, email, status } = response.data;
 
-        login(accessToken, { id, username, email, status });
+        login({ id, username, email, status });
         toast.success("Login successful!", { autoClose: 1500 });
         setFormData({ email: "", password: "" });
         setTimeout(() => navigate("/"), 1800);

@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "./ChatList.css";
 import { ChatContext } from "../ContextAPI/ChatContext";
@@ -50,10 +50,15 @@ export default function ChatList() {
   }, []);
 
   // ░░ WEBSOCKET LISTENER ░░
-  useEffect(() => {
-    if (!client || !connected) return;
+  const chatlistSubRef = useRef(null);
 
-    const sub = client.subscribe(`/topic/chatlist/${userLoggedInId}`, (msg) => {
+  useEffect(() => {
+    if (!client || !connected || !userLoggedInId) return;
+
+    // unsubscribe old subscription if exists
+    if (chatlistSubRef.current) chatlistSubRef.current.unsubscribe();
+
+    chatlistSubRef.current = client.subscribe(`/topic/chatlist/${userLoggedInId}`, (msg) => {
       const data = JSON.parse(msg.body);
 
       if (data.type === "STATUS_CHANGE") {
@@ -72,7 +77,6 @@ export default function ChatList() {
         );
       }
 
-
       if (data.type === "LAST_MESSAGE") {
         const { roomId, msg, time } = data;
 
@@ -85,17 +89,16 @@ export default function ChatList() {
           )
         );
 
-        // update chat window (BUT DO NOT TOUCH name or pic)
+        // update chat window
         setSelectedContact(prev =>
           prev?.roomId === roomId
             ? { ...prev, lastMessage: msg, lastMessageTime: time }
             : prev
         );
       }
-
     });
 
-    return () => sub.unsubscribe();
+    return () => chatlistSubRef.current?.unsubscribe();
   }, [client, connected, userLoggedInId]);
 
   const sendRequest = async (targetId) => {

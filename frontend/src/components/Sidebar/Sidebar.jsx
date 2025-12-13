@@ -5,7 +5,7 @@ import { FaSearch } from "react-icons/fa";
 import axios from "axios";
 import { ChatContext } from "../ContextAPI/ChatContext";
 import { useNavigate } from "react-router-dom";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import { usePageManager } from "../ContextAPI/PageManagerContext";
 
 export default function Sidebar() {
@@ -91,7 +91,7 @@ export default function Sidebar() {
 
         {showMenu && (
           <div className="settings-menu">
-            <button className="menu-item">Profile</button>
+            <button className="menu-item" onClick={() => goToPage("profile")}>Profile</button>
             <button className="menu-item" onClick={() => goToPage("request")}>Connection Requests</button>
             <button className="menu-item" onClick={handleLogOut}>
               Logout

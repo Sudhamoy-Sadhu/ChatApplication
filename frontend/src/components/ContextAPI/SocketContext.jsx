@@ -1,5 +1,4 @@
-// SocketContext.jsx
-import { createContext, useEffect, useState, useContext } from "react";
+import { createContext, useEffect, useState, useContext, useRef } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { AuthContext } from "./AuthContext";
@@ -7,43 +6,65 @@ import { AuthContext } from "./AuthContext";
 export const SocketContext = createContext();
 
 export function SocketProvider({ children }) {
-  const { user } = useContext(AuthContext);   // <-- important
-  const [client, setClient] = useState(null);
+  const { isAuthenticated, loading } = useContext(AuthContext);
+  const clientRef = useRef(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    if (!user) return;  // <-- wait for auth to finish loading
+    // ⛔ Do nothing while auth is loading
+    if (loading) return;
 
-    console.log("Initializing WebSocket AFTER user is ready...");
+    // ⛔ Do nothing if not authenticated
+    if (!isAuthenticated) {
+      if (clientRef.current) {
+        clientRef.current.deactivate();
+        clientRef.current = null;
+        setConnected(false);
+      }
+      return;
+    }
+
+    // ✅ Prevent double connection
+    if (clientRef.current) return;
+
+    console.log("🔐 Authenticated → Connecting WebSocket");
 
     const sock = new SockJS("http://localhost:8080/ws", null, {
       withCredentials: true,
     });
 
-    const c = new Client({
+    const client = new Client({
       webSocketFactory: () => sock,
-      reconnectDelay: 3000,  // retry 3 seconds
-      debug: (msg) => console.log("[STOMP] " + msg),
+      reconnectDelay: 3000,
+      debug: (msg) => console.log("[STOMP]", msg),
     });
 
-    c.onConnect = () => {
-      console.log("WS CONNECTED ✔");
+    client.onConnect = () => {
+      console.log("✅ WebSocket connected");
       setConnected(true);
     };
 
-    c.onStompError = (frame) => {
-      console.error("Broker error:", frame.headers["message"]);
-      console.error("Details:", frame.body);
+    client.onDisconnect = () => {
+      console.log("🔌 WebSocket disconnected");
+      setConnected(false);
     };
 
-    c.activate();
-    setClient(c);
+    client.onStompError = (frame) => {
+      console.error("❌ Broker error:", frame.headers["message"]);
+    };
 
-    return () => c.deactivate();
-  }, [user]);  // <-- run again ONLY when user loads
+    client.activate();
+    clientRef.current = client;
+
+    return () => {
+      client.deactivate();
+      clientRef.current = null;
+      setConnected(false);
+    };
+  }, [isAuthenticated, loading]);
 
   return (
-    <SocketContext.Provider value={{ client, connected }}>
+    <SocketContext.Provider value={{ client: clientRef.current, connected }}>
       {children}
     </SocketContext.Provider>
   );

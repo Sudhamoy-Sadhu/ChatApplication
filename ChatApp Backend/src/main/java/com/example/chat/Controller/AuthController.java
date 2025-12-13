@@ -22,6 +22,7 @@ import com.example.chat.Model.User;
 import com.example.chat.Repository.UserRepo;
 import com.example.chat.Service.JwtService;
 import com.example.chat.Service.UserService;
+import com.nimbusds.jwt.SignedJWT;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,20 +68,20 @@ public class AuthController {
 
         ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refresh)
                 .httpOnly(true)
-                .secure(true) // in production set true
+                .secure(false) // in production set true
                 .path("/auth/refresh") // cookie sent only for refresh API
                 .maxAge(7 * 24 * 3600)
-                .sameSite("None")
+                .sameSite("Lax")
                 .build();
 
         response.addHeader("Set-Cookie", refreshCookie.toString());
 
         ResponseCookie accessCookie = ResponseCookie.from("access_token", access)
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/") // sent for all backend APIs
                 .maxAge(15 * 60) // 15 minutes
-                .sameSite("None")
+                .sameSite("Lax")
                 .build();
 
         response.addHeader("Set-Cookie", accessCookie.toString());
@@ -123,17 +124,32 @@ public class AuthController {
 
             String newAccess = jwtService.createAccessToken(user, Set.of("USER"));
 
-            ResponseCookie cookie = ResponseCookie.from("refresh_token", newRefresh)
+            ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", newRefresh)
                     .httpOnly(true)
-                    .secure(true)
+                    .secure(false)
                     .path("/auth/refresh")
                     .maxAge(7 * 24 * 3600)
-                    .sameSite("None")
+                    .sameSite("Lax")
                     .build();
-            response.addHeader("Set-Cookie", cookie.toString());
+            response.addHeader("Set-Cookie", refreshCookie.toString());
+
+            ResponseCookie accessCookie = ResponseCookie.from("access_token", newAccess)
+                    .httpOnly(true)
+                    .secure(false)
+                    .path("/")
+                    .maxAge(15 * 60)
+                    .sameSite("Lax")
+                    .build();
+
+            response.addHeader("Set-Cookie", accessCookie.toString());
 
             return ResponseEntity.ok(Map.of("accessToken", newAccess));
         } catch (Exception ex) {
+            try {
+                var jwt = SignedJWT.parse(oldRefresh);
+                Long id = Long.valueOf(jwt.getJWTClaimsSet().getSubject());
+                userService.setStatusOffline(id);
+            } catch (Exception ignoredException) {}
             return ResponseEntity.status(401).body("Invalid refresh token");
         }
     }
@@ -170,19 +186,19 @@ public class AuthController {
         // 🔥 Clear REFRESH TOKEN COOKIE
         ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")
                 .httpOnly(true)
-                .secure(true) // true in production
+                .secure(false) // true in production
                 .path("/auth/refresh") // same path as login
                 .maxAge(0) // delete
-                .sameSite("None") // must match login cookie
+                .sameSite("Lax") // must match login cookie
                 .build();
 
         // 🔥 Clear ACCESS TOKEN COOKIE
         ResponseCookie clearAccess = ResponseCookie.from("access_token", "")
                 .httpOnly(true)
-                .secure(true) // true in production
+                .secure(false) // true in production
                 .path("/") // same path as login
                 .maxAge(0) // delete
-                .sameSite("None") // must match login cookie
+                .sameSite("Lax") // must match login cookie
                 .build();
 
         // Add both cookies to response

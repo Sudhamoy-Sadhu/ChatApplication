@@ -18,7 +18,8 @@ export default function ChatWindow() {
   const { contacts, selectedContact, setSelectedContact } = useContext(ChatContext);
   const [messages, setMessages] = useState([]);
   const { user } = useContext(AuthContext);
-  const currentUserId = user?.id;
+  console.log("AuthContext user:", user);
+  const currentUserId = user.id;
   const [newMessage, setNewMessage] = useState("");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const chatEndRef = useRef(null);
@@ -29,7 +30,7 @@ export default function ChatWindow() {
 
   const safeImage = (url) => url || "/assets/default-logo.png";
 
-   useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         emojiPickerVisible &&
@@ -58,23 +59,18 @@ export default function ChatWindow() {
     }
   }, [contacts]);
 
-  // Subscribe to room messages
-  useEffect(() => {
-    if (!selectedContact || !connected || !client) return;
-
-    const sub = client.subscribe(
-      `/topic/room/${selectedContact.roomId}`,
-      (msg) => {
-        setMessages(prev => [...prev, JSON.parse(msg.body)]);
-      }
-    );
-
-    return () => sub.unsubscribe();
-  }, [selectedContact, connected, client]);
-
-  // Load history
   useEffect(() => {
     if (!selectedContact) return;
+
+    // Clear previous messages
+    setMessages([]);
+  }, [selectedContact]);
+
+
+  useEffect(() => {
+    if (!selectedContact || !client || !connected) return;
+
+    let isMounted = true;
 
     const fetchMessages = async () => {
       try {
@@ -82,14 +78,26 @@ export default function ChatWindow() {
           `http://localhost:8080/messages/${selectedContact.roomId}`,
           { withCredentials: true }
         );
-        setMessages(response.data);
+        if (isMounted) setMessages(response.data);
       } catch (err) {
         toast.error("Failed to load messages");
       }
     };
 
     fetchMessages();
-  }, [selectedContact]);
+
+    const sub = client.subscribe(`/topic/room/${selectedContact.roomId}`, (msg) => {
+      const message = JSON.parse(msg.body);
+      setMessages(prev => [...prev, message]);
+    });
+
+    return () => {
+      isMounted = false;
+      sub.unsubscribe();
+    };
+  }, [selectedContact, client, connected]);
+
+
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -100,27 +108,32 @@ export default function ChatWindow() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedContact) return;
 
     try {
       const payload = {
         roomId: selectedContact.roomId,
-        content: newMessage
+        content: newMessage.trim(),
       };
 
-      const response = await axios.post(
+      // Send to backend (DO NOT update messages here)
+      await axios.post(
         "http://localhost:8080/messages/send",
         payload,
         { withCredentials: true }
       );
 
-      setMessages(prev => [...prev, response.data]);
+      // Clear input only
       setNewMessage("");
 
+      // Message will arrive via WebSocket:
+      // /topic/room/{roomId}
     } catch (err) {
+      console.error("Send message failed:", err);
       toast.error("Failed to send message");
     }
   };
+
 
   if (!selectedContact) {
     return (
@@ -170,7 +183,9 @@ export default function ChatWindow() {
         </div>
 
         {messages.map((msg, idx) => {
-          const isSentByMe = msg.senderId === currentUserId;
+          const isSentByMe = Number(msg.senderId) === Number(currentUserId);
+          console.log("MSG senderId:", msg.senderId, "currentUserId:", currentUserId);
+
 
           return (
             <div key={idx} className={isSentByMe ? "sent-wrapper" : "received-wrapper"}>

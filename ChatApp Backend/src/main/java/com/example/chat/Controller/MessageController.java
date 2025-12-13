@@ -1,5 +1,6 @@
 package com.example.chat.Controller;
 
+import com.example.chat.DTO.MessageDTO;
 import com.example.chat.DTO.MessageSendRequestDTO;
 import com.example.chat.Model.Message;
 import com.example.chat.Service.MessageService;
@@ -20,54 +21,68 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MessageController {
 
-    private final MessageService messageService;
-    private final SimpMessagingTemplate messagingTemplate;
-    private final RoomService roomService;
+        private final MessageService messageService;
+        private final SimpMessagingTemplate messagingTemplate;
+        private final RoomService roomService;
 
-    // ==========================
-    // SEND MESSAGE
-    // ==========================
-    @PostMapping("/send")
-    public ResponseEntity<?> sendMessage(
-            @RequestBody MessageSendRequestDTO request,
-            Principal principal) {
+        // ==========================
+        // SEND MESSAGE
+        // ==========================
+        @PostMapping("/send")
+        public ResponseEntity<?> sendMessage(
+                        @RequestBody MessageSendRequestDTO request,
+                        Principal principal) {
 
-        Long senderId = Long.valueOf(principal.getName());
-        Long roomId = request.getRoomId();
-        String content = request.getContent();
+                Long senderId = Long.valueOf(principal.getName());
+                Long roomId = request.getRoomId();
+                String content = request.getContent();
 
-        // Save message in DB
-        Message saved = messageService.saveMessage(roomId, senderId, content);
+                // Save message in DB
+                Message saved = messageService.saveMessage(roomId, senderId, content);
 
-        // Broadcast new message to the chat window (room subscribers)
-        messagingTemplate.convertAndSend(
-                "/topic/room/" + roomId,
-                saved
-        );
+                // Convert to DTO
+                MessageDTO dto = MessageDTO.builder()
+                                .id(saved.getId())
+                                .senderId(saved.getSenderId())
+                                .roomId(saved.getRoomId())
+                                .content(saved.getContent())
+                                .sentAt(saved.getSentAt())
+                                .build();
 
-        // Send LAST_MESSAGE update to chatlist listeners
-        roomService.getRoomParticipants(roomId)
-                .forEach(userId -> {
-                    messagingTemplate.convertAndSend(
-                            "/topic/chatlist/" + userId,
-                            Map.of(
-                                    "type", "LAST_MESSAGE",
-                                    "roomId", roomId,
-                                    "msg", saved.getContent(),
-                                    "time", TimeFormatter.format(saved.getSentAt())
-                            )
-                    );
-                });
+                // Broadcast new message to the chat window
+                messagingTemplate.convertAndSend("/topic/room/" + roomId, dto);
 
-        return ResponseEntity.ok(saved);
-    }
+                // Send LAST_MESSAGE update to chatlist listeners
+                roomService.getRoomParticipants(roomId)
+                                .forEach(userId -> {
+                                        messagingTemplate.convertAndSend(
+                                                        "/topic/chatlist/" + userId,
+                                                        Map.of(
+                                                                        "type", "LAST_MESSAGE",
+                                                                        "roomId", roomId,
+                                                                        "msg", dto.getContent(),
+                                                                        "time", TimeFormatter.format(dto.getSentAt())));
+                                });
 
-    // ==========================
-    // GET ROOM MESSAGES
-    // ==========================
-    @GetMapping("/{roomId}")
-    public ResponseEntity<?> getMessages(@PathVariable Long roomId) {
-        List<Message> messages = messageService.getMessages(roomId);
-        return ResponseEntity.ok(messages);
-    }
+                return ResponseEntity.ok(dto);
+        }
+
+        // ==========================
+        // GET ROOM MESSAGES
+        // ==========================
+        @GetMapping("/{roomId}")
+        public ResponseEntity<?> getMessages(@PathVariable Long roomId) {
+                List<Message> messages = messageService.getMessages(roomId);
+
+                List<MessageDTO> dtos = messages.stream().map(m -> MessageDTO.builder()
+                                .id(m.getId())
+                                .senderId(m.getSenderId())
+                                .roomId(m.getRoomId())
+                                .content(m.getContent())
+                                .sentAt(m.getSentAt())
+                                .build()).toList();
+
+                return ResponseEntity.ok(dtos);
+        }
+
 }
