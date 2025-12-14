@@ -1,8 +1,10 @@
 package com.example.chat.Model;
 
 import java.time.Instant;
+import java.util.Set;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -66,6 +68,9 @@ public class Message {
     private Long sizeBytes;
     private Integer durationSeconds;
     */
+
+    @ElementCollection
+    Set<Long> readByUserIds;
 
     @Column(nullable = false)
     private Instant sentAt = Instant.now();

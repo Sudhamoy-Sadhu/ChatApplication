@@ -12,10 +12,21 @@ export function ChatProvider({ children }) {
 
 
   useEffect(() => {
-    if (selectedContact && contacts.length > 0) {
-      const updated = contacts.find(c => c.id === selectedContact.id);
-      if (updated) setSelectedContact(updated);
-    }
+    if (!selectedContact) return;
+
+    const updated = contacts.find(
+      c => c.roomId === selectedContact.roomId
+    );
+
+    if (!updated) return;
+
+    setSelectedContact(prev => ({
+      ...prev,
+      status: updated.status,
+      lastMessage: updated.lastMessage,
+      lastMessageTime: updated.lastMessageTime,
+      unreadCount: updated.unreadCount
+    }));
   }, [contacts]);
 
 

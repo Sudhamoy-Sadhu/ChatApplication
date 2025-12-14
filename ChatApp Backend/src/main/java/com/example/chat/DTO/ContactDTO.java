@@ -11,16 +11,15 @@ import java.time.Instant;
 public class ContactDTO {
 
     private Long id;
-
+    private Long userId;
     private String username;
     private String email;
     private String profileImageUrl;
     private String status;
     private Instant lastSeen;
-
     private String lastMessage;
     private String lastMessageTime;
-
+    private int unreadCount;
     private Long roomId;       
     private String roomName;    
 }

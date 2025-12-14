@@ -29,18 +29,21 @@ public class Room {
     private String name;
 
     @Column(nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
-    private Instant updatedAt = Instant.now();
+    private Instant updatedAt;
 
+    @Column(length = 200)
     private String lastMessage;
 
     private Long lastMessageSender; 
 
     private Instant lastMessageTime;
 
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = Instant.now();
+    @PrePersist
+    public void onCreate() {
+        Instant now = Instant.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 }

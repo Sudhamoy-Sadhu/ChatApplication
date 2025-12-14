@@ -32,7 +32,10 @@ export default function ChatList() {
           { withCredentials: true }
         );
 
-        const sorted = response.data.sort((a, b) => {
+        const sorted = response.data.map(c => ({
+          ...c,
+          unreadCount: c.unreadCount ?? 0
+        })).sort((a, b) => {
           const t1 = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
           const t2 = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
           return t2 - t1;
@@ -49,57 +52,104 @@ export default function ChatList() {
     fetchContacts();
   }, []);
 
+  const selectedRoomRef = useRef(null);
+  useEffect(() => {
+    selectedRoomRef.current = selectedContact?.roomId ?? null;
+  }, [selectedContact]);
+
+
   // ░░ WEBSOCKET LISTENER ░░
   const chatlistSubRef = useRef(null);
+  const unreadSubRef = useRef(null);
 
   useEffect(() => {
-    if (!client || !connected || !userLoggedInId) return;
+    if (!client || !connected || !client.connected || !userLoggedInId) return;
 
-    // unsubscribe old subscription if exists
-    if (chatlistSubRef.current) chatlistSubRef.current.unsubscribe();
+    // cleanup old subscriptions
+    chatlistSubRef.current?.unsubscribe();
+    unreadSubRef.current?.unsubscribe();
 
-    chatlistSubRef.current = client.subscribe(`/topic/chatlist/${userLoggedInId}`, (msg) => {
-      const data = JSON.parse(msg.body);
+    // ===============================
+    // Chatlist subscription
+    // ===============================
+    chatlistSubRef.current = client.subscribe(
+      `/topic/chatlist/${userLoggedInId}`,
+      (msg) => {
+        const data = JSON.parse(msg.body);
 
-      if (data.type === "STATUS_CHANGE") {
-        const { userId, status } = data;
+        if (data.type === "STATUS_CHANGE") {
+          const { userId, status } = data;
 
-        setContacts(prev =>
-          prev.map(c =>
-            c.id === userId ? { ...c, status } : c
-          )
-        );
+          setContacts(prev =>
+            prev.map(c =>
+              c.userId === userId ? { ...c, status } : c
+            )
+          );
 
-        setSelectedContact(prev =>
-          prev?.id === userId
-            ? { ...prev, status }
-            : prev
-        );
+          setSelectedContact(prev =>
+            prev?.userId === userId
+              ? { ...prev, status }
+              : prev
+          );
+        }
+
+        if (data.type === "LAST_MESSAGE") {
+          const { roomId, msg: lastMessage, time } = data;
+
+          setContacts(prev => {
+            const updated = prev.map(c =>
+              c.roomId === roomId
+                ? { ...c, lastMessage, lastMessageTime: time }
+                : c
+            );
+
+            return updated.sort((a, b) => {
+              const t1 = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+              const t2 = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+              return t2 - t1;
+            });
+          });
+
+          setSelectedContact(prev =>
+            prev?.roomId === roomId
+              ? { ...prev, lastMessage, lastMessageTime: time }
+              : prev
+          );
+        }
       }
+    );
 
-      if (data.type === "LAST_MESSAGE") {
-        const { roomId, msg, time } = data;
+    // ===============================
+    // Unread count subscription
+    // ===============================
+    unreadSubRef.current = client.subscribe(
+      "/user/queue/unread",
+      async (msg) => {
+        const { roomId, unreadCount } = JSON.parse(msg.body);
 
-        // update chatlist
+        // 🔑 If this room is currently open, ignore unread
+        if (selectedRoomRef.current === roomId) return;
+
+        // Otherwise update unread count
         setContacts(prev =>
           prev.map(c =>
             c.roomId === roomId
-              ? { ...c, lastMessage: msg, lastMessageTime: time }
+              ? { ...c, unreadCount }
               : c
           )
         );
-
-        // update chat window
-        setSelectedContact(prev =>
-          prev?.roomId === roomId
-            ? { ...prev, lastMessage: msg, lastMessageTime: time }
-            : prev
-        );
       }
-    });
+    );
 
-    return () => chatlistSubRef.current?.unsubscribe();
+
+    // cleanup on unmount / reconnect
+    return () => {
+      chatlistSubRef.current?.unsubscribe();
+      unreadSubRef.current?.unsubscribe();
+    };
+
   }, [client, connected, userLoggedInId]);
+
 
   const sendRequest = async (targetId) => {
     try {
@@ -143,8 +193,8 @@ export default function ChatList() {
         const username = user.username;
         const email = user.email;
         const profileImageUrl = user.profileImageUrl || "/assets/default-logo.png";
-        const lastMsg = user.lastMessage || "Start your conversation!";
-        const lastMsgTime = user.lastMessageTime || "";
+        const lastMessage = user.lastMessage || "Start your conversation!";
+        const lastMessageTime = user.lastMessageTime || "";
         const status = user.status ?? "INACTIVE";
         const roomId = user.roomId;
 
@@ -157,6 +207,16 @@ export default function ChatList() {
             key={i}
             className="chat-item"
             onClick={() => {
+              setContacts(prev =>
+                prev.map(c =>
+                  c.roomId === roomId
+                    ? { ...c, unreadCount: 0 }
+                    : c
+                )
+              );
+
+              if (!roomId || isNotFound || !isContact) return;
+
               if (!isNotFound && isContact) {
 
                 const fullContact = contacts.find(c => c.email === user.email);
@@ -164,15 +224,15 @@ export default function ChatList() {
                 if (!fullContact) return;
 
                 setSelectedContact({
-                  id: user.id,
+                  userId: user.id,
                   username,
                   profileImageUrl: user.profileImageUrl ? user.profileImageUrl : "/assets/default-logo.png",
                   email,
                   roomId,
                   roomName: user.roomName ?? user.username,
                   status,
-                  lastMsg,
-                  lastMsgTime
+                  lastMessage,
+                  lastMessageTime
                 });
                 goToPage("home");
               }
@@ -193,9 +253,15 @@ export default function ChatList() {
                   <>
                     <div className="details-name">
                       <h4>{user.roomName ?? username}</h4>
-                      <p className="last-message">{lastMsg}</p>
+                      <p className="last-message">{lastMessage}</p>
                     </div>
-                    <div className="chat-time">{lastMsgTime}</div>
+                    <div className="chat-time">{lastMessageTime}
+                      {user.unreadCount > 0 && (
+                        <span className="unread-badge">
+                          {user.unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

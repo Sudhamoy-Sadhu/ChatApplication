@@ -10,6 +10,7 @@ import com.example.chat.Utils.TimeFormatter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -29,18 +30,17 @@ public class MessageController {
         // SEND MESSAGE
         // ==========================
         @PostMapping("/send")
-        public ResponseEntity<?> sendMessage(
+        public ResponseEntity<MessageDTO> sendMessage(
                         @RequestBody MessageSendRequestDTO request,
                         Principal principal) {
 
                 Long senderId = Long.valueOf(principal.getName());
-                Long roomId = request.getRoomId();
-                String content = request.getContent();
 
-                // Save message in DB
-                Message saved = messageService.saveMessage(roomId, senderId, content);
+                Message saved = messageService.saveMessage(
+                                request.getRoomId(),
+                                senderId,
+                                request.getContent());
 
-                // Convert to DTO
                 MessageDTO dto = MessageDTO.builder()
                                 .id(saved.getId())
                                 .senderId(saved.getSenderId())
@@ -48,21 +48,6 @@ public class MessageController {
                                 .content(saved.getContent())
                                 .sentAt(saved.getSentAt())
                                 .build();
-
-                // Broadcast new message to the chat window
-                messagingTemplate.convertAndSend("/topic/room/" + roomId, dto);
-
-                // Send LAST_MESSAGE update to chatlist listeners
-                roomService.getRoomParticipants(roomId)
-                                .forEach(userId -> {
-                                        messagingTemplate.convertAndSend(
-                                                        "/topic/chatlist/" + userId,
-                                                        Map.of(
-                                                                        "type", "LAST_MESSAGE",
-                                                                        "roomId", roomId,
-                                                                        "msg", dto.getContent(),
-                                                                        "time", TimeFormatter.format(dto.getSentAt())));
-                                });
 
                 return ResponseEntity.ok(dto);
         }
@@ -83,6 +68,15 @@ public class MessageController {
                                 .build()).toList();
 
                 return ResponseEntity.ok(dtos);
+        }
+
+        @PostMapping("/{roomId}/mark-read")
+        public ResponseEntity<?> markAsRead(
+                        @PathVariable Long roomId,
+                        Authentication authentication) {
+                Long userId = Long.valueOf(authentication.getName());
+                messageService.markRoomAsRead(roomId, userId);
+                return ResponseEntity.ok().build();
         }
 
 }

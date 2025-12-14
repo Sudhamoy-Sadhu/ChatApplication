@@ -105,7 +105,7 @@
     flex-direction: column;
     /* background-image: linear-gradient(#09395D, #142532); */
     overflow-y: auto;
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
     width: 100%;
     height: 80%;
     padding: 30px;
@@ -251,6 +251,7 @@
 .chat-input {
     display: flex;
     align-items: center;
+    height: 8%;
     gap: 10px;
     background: #214C79; /* WhatsApp light gray */
     padding: 10px;

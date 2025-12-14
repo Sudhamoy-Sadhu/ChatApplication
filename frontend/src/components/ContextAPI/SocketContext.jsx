@@ -1,31 +1,28 @@
-import { createContext, useEffect, useState, useContext, useRef } from "react";
+import { createContext, useEffect, useState, useContext } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { AuthContext } from "./AuthContext";
 
-export const SocketContext = createContext();
+export const SocketContext = createContext(null);
 
 export function SocketProvider({ children }) {
   const { isAuthenticated, loading } = useContext(AuthContext);
-  const clientRef = useRef(null);
+  const [client, setClient] = useState(null);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    // ⛔ Do nothing while auth is loading
     if (loading) return;
 
-    // ⛔ Do nothing if not authenticated
     if (!isAuthenticated) {
-      if (clientRef.current) {
-        clientRef.current.deactivate();
-        clientRef.current = null;
+      if (client) {
+        client.deactivate();
+        setClient(null);
         setConnected(false);
       }
       return;
     }
 
-    // ✅ Prevent double connection
-    if (clientRef.current) return;
+    if (client) return;
 
     console.log("🔐 Authenticated → Connecting WebSocket");
 
@@ -33,38 +30,38 @@ export function SocketProvider({ children }) {
       withCredentials: true,
     });
 
-    const client = new Client({
+    const stompClient = new Client({
       webSocketFactory: () => sock,
       reconnectDelay: 3000,
       debug: (msg) => console.log("[STOMP]", msg),
     });
 
-    client.onConnect = () => {
+    stompClient.onConnect = () => {
       console.log("✅ WebSocket connected");
       setConnected(true);
     };
 
-    client.onDisconnect = () => {
+    stompClient.onDisconnect = () => {
       console.log("🔌 WebSocket disconnected");
       setConnected(false);
     };
 
-    client.onStompError = (frame) => {
+    stompClient.onStompError = (frame) => {
       console.error("❌ Broker error:", frame.headers["message"]);
     };
 
-    client.activate();
-    clientRef.current = client;
+    stompClient.activate();
+    setClient(stompClient);
 
     return () => {
-      client.deactivate();
-      clientRef.current = null;
+      stompClient.deactivate();
+      setClient(null);
       setConnected(false);
     };
   }, [isAuthenticated, loading]);
 
   return (
-    <SocketContext.Provider value={{ client: clientRef.current, connected }}>
+    <SocketContext.Provider value={{ client, connected }}>
       {children}
     </SocketContext.Provider>
   );

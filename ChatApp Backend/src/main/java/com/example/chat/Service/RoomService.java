@@ -2,6 +2,8 @@ package com.example.chat.Service;
 
 import com.example.chat.Model.Room;
 import com.example.chat.Repository.RoomRepository;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -31,8 +33,6 @@ public class RoomService {
                 .type("PRIVATE")
                 .uniqueKey(uniqueKey)
                 .createdBy(createdBy)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
                 .build();
 
         return roomRepository.save(room);
@@ -57,8 +57,6 @@ public class RoomService {
                 .type("GROUP")
                 .uniqueKey(uniqueKey)
                 .createdBy(createdBy)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
                 .build();
 
         return roomRepository.save(room);
@@ -68,13 +66,15 @@ public class RoomService {
     // UPDATE ROOM METADATA
     // =====================
 
-    public void updateLastMessage(Long roomId, Long senderId, String message) {
+    @Transactional
+    public void updateLastMessage(Long roomId, Long senderId, String preview, Instant sentAt) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room not found"));
 
-        room.setLastMessage(message);
+        room.setLastMessage(preview);
         room.setLastMessageSender(senderId);
-        room.setLastMessageTime(Instant.now());
+        room.setLastMessageTime(sentAt);
+        room.setUpdatedAt(sentAt);
 
         roomRepository.save(room);
     }

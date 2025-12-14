@@ -18,6 +18,9 @@ public class ContactService {
     @Autowired
     private ContactRepo contactRepo;
 
+    @Autowired
+    private MessageService messageService;  
+
     public List<ContactDTO> getContactsForUser(Long userId) {
 
         List<Contact> contacts = contactRepo.findAllByUserId(userId);
@@ -26,11 +29,16 @@ public class ContactService {
                 .map(contact -> {
                     User other = contact.getContactUser();
                     Room room = contact.getRoom();
+                    int unreadCount = 0;
+                    if(room != null){
+                        unreadCount = messageService.getUnreadCount(room.getId(), userId);
+                    }
 
                     return ContactDTO.builder()
                             .id(contact.getId())
 
                             // USER DETAILS (from contactUser)
+                            .userId(other.getId())
                             .username(other.getUsername())
                             .email(other.getEmail())
                             .profileImageUrl(other.getProfilePicture() != null ? "some-url" : null)
@@ -42,7 +50,7 @@ public class ContactService {
                             .roomName(room != null ? room.getName() : other.getUsername())
                             .lastMessage(room != null ? room.getLastMessage() : null)
                             .lastMessageTime(room != null ? TimeFormatter.format(room.getLastMessageTime()) : null)
-
+                            .unreadCount(unreadCount)
                             .build();
                 })
                 .toList();

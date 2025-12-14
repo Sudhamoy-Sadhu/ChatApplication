@@ -18,13 +18,15 @@ export default function ChatWindow() {
   const { contacts, selectedContact, setSelectedContact } = useContext(ChatContext);
   const [messages, setMessages] = useState([]);
   const { user } = useContext(AuthContext);
-  console.log("AuthContext user:", user);
   const currentUserId = user.id;
   const [newMessage, setNewMessage] = useState("");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
-  const chatEndRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const { client, connected } = useContext(SocketContext);
+  const messagesContainerRef = useRef(null);
+  const isAtBottomRef = useRef(true);
+  const initialLoadRef = useRef(true);
+
 
   const isOnline = selectedContact?.status === "ACTIVE";
 
@@ -50,27 +52,48 @@ export default function ChatWindow() {
     if (!selectedContact) return;
 
     const updated = contacts.find(c => c.id === selectedContact.id);
-    if (updated) {
+    if (!updated) return;
+
+    if (
+      updated.status !== selectedContact.status ||
+      updated.profileImageUrl !== selectedContact.profileImageUrl
+    ) {
       setSelectedContact(prev => ({
         ...prev,
         status: updated.status,
-        profileImageUrl: safeImage(updated.profileImageUrl ?? prev.profileImageUrl)
+        profileImageUrl: safeImage(updated.profileImageUrl)
       }));
     }
   }, [contacts]);
 
-  useEffect(() => {
-    if (!selectedContact) return;
+  const scrollToBottom = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
 
-    // Clear previous messages
-    setMessages([]);
-  }, [selectedContact]);
+    // run twice: once immediately, once after layout settles
+    el.scrollTop = el.scrollHeight;
+
+    setTimeout(() => {
+      el.scrollTop = el.scrollHeight;
+    }, 50);
+  };
 
 
+
+  // useEffect(() => {
+  //   if (!selectedContact) return;
+
+  //   // Clear previous messages
+  //   setMessages([]);
+  // }, [selectedContact]);
+
+  const lastReadMsgRef = useRef(null);
   useEffect(() => {
     if (!selectedContact || !client || !connected) return;
 
     let isMounted = true;
+    initialLoadRef.current = true;
+    lastReadMsgRef.current = null;
 
     const fetchMessages = async () => {
       try {
@@ -78,7 +101,17 @@ export default function ChatWindow() {
           `http://localhost:8080/messages/${selectedContact.roomId}`,
           { withCredentials: true }
         );
-        if (isMounted) setMessages(response.data);
+
+        if (!isMounted) return;
+
+        setMessages(response.data);
+
+        // ⬇ Jump instantly to bottom on initial load
+        requestAnimationFrame(() => {
+          scrollToBottom();
+          initialLoadRef.current = false;
+        });
+
       } catch (err) {
         toast.error("Failed to load messages");
       }
@@ -86,29 +119,68 @@ export default function ChatWindow() {
 
     fetchMessages();
 
-    const sub = client.subscribe(`/topic/room/${selectedContact.roomId}`, (msg) => {
-      const message = JSON.parse(msg.body);
-      setMessages(prev => [...prev, message]);
-    });
+    const sub = client.subscribe(
+      `/topic/room/${selectedContact.roomId}`,
+      (msg) => {
+        const message = JSON.parse(msg.body);
+        if (message.roomId !== selectedContact.roomId) return;
+        const sentByMe = Number(message.senderId) === Number(currentUserId);
+
+        setMessages(prev => [...prev, message]);
+
+        // ⬇ Scroll ONLY if user is already at bottom
+          if (sentByMe || isAtBottomRef.current) {
+            requestAnimationFrame(scrollToBottom);
+          }
+      }
+    );
 
     return () => {
       isMounted = false;
       sub.unsubscribe();
     };
-  }, [selectedContact, client, connected]);
+  }, [selectedContact?.roomId, client, connected, currentUserId]);
 
 
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!selectedContact || messages.length === 0) return;
+
+    // Only mark read if user is at bottom
+    if (!isAtBottomRef.current) return;
+
+    const lastMsg = messages[messages.length - 1];
+
+    if (
+      lastMsg &&
+      Number(lastMsg.senderId) !== Number(currentUserId) &&
+      lastReadMsgRef.current !== lastMsg.id
+    ) {
+      lastReadMsgRef.current = lastMsg.id;
+
+      axios.post(
+        `http://localhost:8080/messages/${selectedContact.roomId}/mark-read`,
+        {},
+        { withCredentials: true }
+      ).catch(() => { });
+    }
+  }, [messages, selectedContact?.roomId, currentUserId]);
+
+
 
   const handleKeyPress = (e) => {
-    if (e.key === "Enter") sendMessage();
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
+  const sendingRef = useRef(false);
   const sendMessage = async () => {
+    if (sendingRef.current) return;
     if (!newMessage.trim() || !selectedContact) return;
+
+    sendingRef.current = true;
 
     try {
       const payload = {
@@ -131,6 +203,8 @@ export default function ChatWindow() {
     } catch (err) {
       console.error("Send message failed:", err);
       toast.error("Failed to send message");
+    } finally {
+      sendingRef.current = false;
     }
   };
 
@@ -173,22 +247,32 @@ export default function ChatWindow() {
         </div>
       </div>
 
-      <div className="chat-messages">
+      <div className="chat-messages" ref={messagesContainerRef}
+        onScroll={() => {
+          const el = messagesContainerRef.current;
+          if (!el) return;
 
-        <div className="new-chat">
-          <span><img src={selectedContact.profileImageUrl || "/assets/default-logo.png"} alt="" /></span>
-          <h2>{selectedContact.username}</h2>
-          <p>Start Chatting with {selectedContact.username} by sending Hi!</p>
-          <button>Send Hello</button>
-        </div>
+          const threshold = 100;
+          const atBottom =
+            el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
 
-        {messages.map((msg, idx) => {
+          isAtBottomRef.current = atBottom;
+        }}>
+
+        {messages.length === 0 && (
+          <div className="new-chat">
+            <span><img src={selectedContact.profileImageUrl || "/assets/default-logo.png"} alt="" /></span>
+            <h2>{selectedContact.username}</h2>
+            <p>Start Chatting with {selectedContact.username} by sending Hi!</p>
+            <button>Send Hello</button>
+          </div>
+        )}
+
+        {messages.map(msg => {
           const isSentByMe = Number(msg.senderId) === Number(currentUserId);
-          console.log("MSG senderId:", msg.senderId, "currentUserId:", currentUserId);
-
-
+          const key = msg.id ?? `${msg.senderId} - ${msg.sentAt}`;
           return (
-            <div key={idx} className={isSentByMe ? "sent-wrapper" : "received-wrapper"}>
+            <div key={key} className={isSentByMe ? "sent-wrapper" : "received-wrapper"}>
 
               <span className={isSentByMe ? "senttime" : "receivedtime"}>
                 {new Date(msg.sentAt).toLocaleString("en-GB", {
@@ -208,7 +292,6 @@ export default function ChatWindow() {
           );
         })}
 
-        <div ref={chatEndRef} />
       </div>
 
       <div className="chat-input">
@@ -226,7 +309,7 @@ export default function ChatWindow() {
             placeholder="Type your message..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyPress}
           />
 
           {emojiPickerVisible && (
