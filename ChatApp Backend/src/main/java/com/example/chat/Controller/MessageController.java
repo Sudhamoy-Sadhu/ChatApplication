@@ -4,18 +4,14 @@ import com.example.chat.DTO.MessageDTO;
 import com.example.chat.DTO.MessageSendRequestDTO;
 import com.example.chat.Model.Message;
 import com.example.chat.Service.MessageService;
-import com.example.chat.Service.RoomService;
-import com.example.chat.Utils.TimeFormatter;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/messages")
@@ -23,8 +19,6 @@ import java.util.Map;
 public class MessageController {
 
         private final MessageService messageService;
-        private final SimpMessagingTemplate messagingTemplate;
-        private final RoomService roomService;
 
         // ==========================
         // SEND MESSAGE
@@ -65,6 +59,8 @@ public class MessageController {
                                 .roomId(m.getRoomId())
                                 .content(m.getContent())
                                 .sentAt(m.getSentAt())
+                                .readByUserIds(List.copyOf(m.getReadByUserIds()))
+                                .deliveredToUserIds(List.copyOf(m.getDeliveredToUserIds()))
                                 .build()).toList();
 
                 return ResponseEntity.ok(dtos);
@@ -76,6 +72,14 @@ public class MessageController {
                         Authentication authentication) {
                 Long userId = Long.valueOf(authentication.getName());
                 messageService.markRoomAsRead(roomId, userId);
+                return ResponseEntity.ok().build();
+        }
+
+
+        @PostMapping("/mark-delivered-all")
+        public ResponseEntity<?> markAllDelivered(Authentication authentication) {
+                Long userId = Long.valueOf(authentication.getName());
+                messageService.markAllRoomsAsDelivered(userId);
                 return ResponseEntity.ok().build();
         }
 

@@ -110,14 +110,28 @@ export default function ChatList() {
             });
           });
 
+
           setSelectedContact(prev =>
             prev?.roomId === roomId
               ? { ...prev, lastMessage, lastMessageTime: time }
               : prev
           );
         }
+        
+        if (data.type === "READ_RESET") {
+          const { roomId } = data;
+
+          setContacts(prev =>
+            prev.map(c =>
+              c.roomId === roomId
+                ? { ...c, unreadCount: 0 }
+                : c
+            )
+          );
+        }
       }
     );
+
 
     // ===============================
     // Unread count subscription
@@ -148,7 +162,7 @@ export default function ChatList() {
       unreadSubRef.current?.unsubscribe();
     };
 
-  }, [client, connected, userLoggedInId]);
+  }, [client, connected, userLoggedInId, selectedContact]);
 
 
   const sendRequest = async (targetId) => {
@@ -207,14 +221,6 @@ export default function ChatList() {
             key={i}
             className="chat-item"
             onClick={() => {
-              setContacts(prev =>
-                prev.map(c =>
-                  c.roomId === roomId
-                    ? { ...c, unreadCount: 0 }
-                    : c
-                )
-              );
-
               if (!roomId || isNotFound || !isContact) return;
 
               if (!isNotFound && isContact) {

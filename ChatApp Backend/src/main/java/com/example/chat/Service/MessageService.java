@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +36,7 @@ public class MessageService {
                 .content(content)
                 .sentAt(Instant.now())
                 .readByUserIds(new HashSet<>(List.of(senderId)))
+                .deliveredToUserIds(new HashSet<>(List.of(senderId)))
                 .build();
 
         Message saved = messageRepository.save(message);
@@ -66,8 +68,28 @@ public class MessageService {
     @Transactional
     public void markRoomAsRead(Long roomId, Long userId) {
         List<Message> unread = messageRepository.findUnreadMessages(roomId, userId);
-        unread.forEach(m -> m.getReadByUserIds().add(userId));
+        for (Message m : unread) {
+            if (!m.getReadByUserIds().contains(userId)) {
+                m.getReadByUserIds().add(userId);
+
+                messagingTemplate.convertAndSend(
+                        "/topic/receipt/" + m.getSenderId(),
+                        Map.of(
+                                "messageId", m.getId(),
+                                "status", "READ"));
+            }
+        }
         messageRepository.saveAll(unread);
+
+        roomService.getRoomParticipants(roomId)
+                .forEach(uid -> {
+                    messagingTemplate.convertAndSend(
+                            "/topic/chatlist/" + uid,
+                            Map.of(
+                                    "type", "READ_RESET",
+                                    "roomId", roomId));
+                });
+
         messagingTemplate.convertAndSendToUser(
                 userId.toString(),
                 "/queue/unread",
@@ -78,4 +100,22 @@ public class MessageService {
     public int getUnreadCount(Long roomId, Long userId) {
         return messageRepository.countUnread(roomId, userId);
     }
+
+    @Transactional
+    public void markAllRoomsAsDelivered(Long userId) {
+        List<Message> undelivered = messageRepository.findAllUndelivered(userId);
+
+        undelivered.forEach(m -> {
+            m.getDeliveredToUserIds().add(userId);
+
+            messagingTemplate.convertAndSend(
+                    "/topic/receipt/" + m.getSenderId(),
+                    Map.of(
+                            "messageId", m.getId(),
+                            "status", "DELIVERED"));
+        });
+
+        messageRepository.saveAll(undelivered);
+    }
+
 }

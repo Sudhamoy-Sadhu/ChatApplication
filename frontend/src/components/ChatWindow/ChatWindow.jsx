@@ -15,10 +15,10 @@ import { AuthContext } from "../ContextAPI/AuthContext";
 import { SocketContext } from "../ContextAPI/SocketContext";
 
 export default function ChatWindow() {
-  const { contacts, selectedContact, setSelectedContact } = useContext(ChatContext);
+  const { contacts, setContacts, selectedContact, setSelectedContact } = useContext(ChatContext);
   const [messages, setMessages] = useState([]);
   const { user } = useContext(AuthContext);
-  const currentUserId = user.id;
+  const currentUserId = user?.id;
   const [newMessage, setNewMessage] = useState("");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const emojiPickerRef = useRef(null);
@@ -51,7 +51,7 @@ export default function ChatWindow() {
   useEffect(() => {
     if (!selectedContact) return;
 
-    const updated = contacts.find(c => c.id === selectedContact.id);
+    const updated = contacts.find(c => c.userId === selectedContact.userId);
     if (!updated) return;
 
     if (
@@ -70,7 +70,6 @@ export default function ChatWindow() {
     const el = messagesContainerRef.current;
     if (!el) return;
 
-    // run twice: once immediately, once after layout settles
     el.scrollTop = el.scrollHeight;
 
     setTimeout(() => {
@@ -88,6 +87,7 @@ export default function ChatWindow() {
   // }, [selectedContact]);
 
   const lastReadMsgRef = useRef(null);
+
   useEffect(() => {
     if (!selectedContact || !client || !connected) return;
 
@@ -97,22 +97,26 @@ export default function ChatWindow() {
 
     const fetchMessages = async () => {
       try {
-        const response = await axios.get(
+        const res = await axios.get(
           `http://localhost:8080/messages/${selectedContact.roomId}`,
           { withCredentials: true }
         );
 
         if (!isMounted) return;
 
-        setMessages(response.data);
+        setMessages(
+          res.data.map(m => ({
+            ...m,
+            receiptStatus: computeReceipt(m)
+          }))
+        );
 
-        // ⬇ Jump instantly to bottom on initial load
         requestAnimationFrame(() => {
           scrollToBottom();
           initialLoadRef.current = false;
         });
 
-      } catch (err) {
+      } catch {
         toast.error("Failed to load messages");
       }
     };
@@ -124,14 +128,20 @@ export default function ChatWindow() {
       (msg) => {
         const message = JSON.parse(msg.body);
         if (message.roomId !== selectedContact.roomId) return;
+
         const sentByMe = Number(message.senderId) === Number(currentUserId);
 
-        setMessages(prev => [...prev, message]);
-
-        // ⬇ Scroll ONLY if user is already at bottom
-          if (sentByMe || isAtBottomRef.current) {
-            requestAnimationFrame(scrollToBottom);
+        setMessages(prev => [
+          ...prev,
+          {
+            ...message,
+            receiptStatus: sentByMe ? "SENT" : undefined
           }
+        ]);
+
+        if (sentByMe || isAtBottomRef.current) {
+          requestAnimationFrame(scrollToBottom);
+        }
       }
     );
 
@@ -142,17 +152,15 @@ export default function ChatWindow() {
   }, [selectedContact?.roomId, client, connected, currentUserId]);
 
 
-
   useEffect(() => {
-    if (!selectedContact || messages.length === 0) return;
-
-    // Only mark read if user is at bottom
+    if (!selectedContact) return;
     if (!isAtBottomRef.current) return;
+    if (initialLoadRef.current) return;
+    if (messages.length === 0) return;
 
     const lastMsg = messages[messages.length - 1];
 
     if (
-      lastMsg &&
       Number(lastMsg.senderId) !== Number(currentUserId) &&
       lastReadMsgRef.current !== lastMsg.id
     ) {
@@ -163,10 +171,54 @@ export default function ChatWindow() {
         {},
         { withCredentials: true }
       ).catch(() => { });
+
+      // 🔑 FRONTEND GUARANTEE
+      setContacts(prev =>
+        prev.map(c =>
+          c.roomId === selectedContact.roomId
+            ? { ...c, unreadCount: 0 }
+            : c
+        )
+      );
     }
-  }, [messages, selectedContact?.roomId, currentUserId]);
+  }, [messages]);
 
 
+
+  const receiptSubRef = useRef(null);
+
+  useEffect(() => {
+    if (!client || !connected || !currentUserId) return;
+
+    receiptSubRef.current?.unsubscribe();
+
+    receiptSubRef.current = client.subscribe(
+      `/topic/receipt/${currentUserId}`,
+      (msg) => {
+        const { messageId, status } = JSON.parse(msg.body);
+
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === messageId
+              ? { ...m, receiptStatus: status }
+              : m
+          )
+        );
+      }
+    );
+
+    return () => receiptSubRef.current?.unsubscribe();
+  }, [client, connected, currentUserId]);
+
+
+
+  const computeReceipt = (m) => {
+    if (!selectedContact) return "SENT";
+
+    if (m.readByUserIds?.includes(selectedContact.userId)) return "READ";
+    if (m.deliveredToUserIds?.includes(selectedContact.userId)) return "DELIVERED";
+    return "SENT";
+  };
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -286,6 +338,15 @@ export default function ChatWindow() {
 
               <div className={isSentByMe ? "sent" : "received"}>
                 <p>{msg.content}</p>
+                {isSentByMe && (
+                  <span className={`receipt tick-${msg.receiptStatus?.toLowerCase()}`}>
+                    {msg.receiptStatus === "READ"
+                      ? "✔✔"
+                      : msg.receiptStatus === "DELIVERED"
+                        ? "✔✔"
+                        : "✔"}
+                  </span>
+                )}
               </div>
 
             </div>

@@ -2,6 +2,7 @@ import { createContext, useEffect, useState, useContext } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { AuthContext } from "./AuthContext";
+import axios from "axios";
 
 export const SocketContext = createContext(null);
 
@@ -9,6 +10,7 @@ export function SocketProvider({ children }) {
   const { isAuthenticated, loading } = useContext(AuthContext);
   const [client, setClient] = useState(null);
   const [connected, setConnected] = useState(false);
+  const { user } = useContext(AuthContext);
 
   useEffect(() => {
     if (loading) return;
@@ -59,6 +61,16 @@ export function SocketProvider({ children }) {
       setConnected(false);
     };
   }, [isAuthenticated, loading]);
+
+  useEffect(() => {
+    if (!client || !connected || !user?.id) return;
+
+    axios.post(
+      "http://localhost:8080/messages/mark-delivered-all",
+      {},
+      { withCredentials: true }
+    ).catch(() => { });
+  }, [connected]);
 
   return (
     <SocketContext.Provider value={{ client, connected }}>

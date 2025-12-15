@@ -2,6 +2,7 @@ package com.example.chat.DTO;
 
 import lombok.*;
 import java.time.Instant;
+import java.util.List;
 
 @Getter
 @Setter
@@ -14,4 +15,6 @@ public class MessageDTO {
     private Long roomId;
     private String content;
     private Instant sentAt;
+    private List<Long> readByUserIds;
+    private List<Long> deliveredToUserIds;
 }
