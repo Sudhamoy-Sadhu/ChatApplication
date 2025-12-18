@@ -1,6 +1,7 @@
 package com.example.chat.Service;
 
 import com.example.chat.Model.Room;
+import com.example.chat.Presence.UserSessionRegistry;
 import com.example.chat.Repository.RoomRepository;
 
 import jakarta.transaction.Transactional;
@@ -15,7 +16,7 @@ import java.util.List;
 public class RoomService {
 
     private final RoomRepository roomRepository;
-
+    private final UserSessionRegistry sessionRegistry;
     // =====================
     // PRIVATE CHAT ROOM
     // =====================
@@ -94,6 +95,14 @@ public class RoomService {
         // GROUP ROOM SUPPORT (optional)
         // TODO: fetch group members if you support it
         throw new RuntimeException("Group participants not implemented");
+    }
+
+    public boolean isUserOnline(Long userId) {
+        return sessionRegistry.isOnline(userId);
+    }
+
+    public List<Long> getRoomsForUser(Long userId) {
+        return roomRepository.findRoomIdsForUser(userId);
     }
 
 }

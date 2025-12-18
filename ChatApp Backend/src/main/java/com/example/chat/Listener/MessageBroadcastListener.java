@@ -22,62 +22,62 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MessageBroadcastListener {
 
-    private final SimpMessagingTemplate messagingTemplate;
-    private final RoomService roomService;
-    private final MessageRepository messageRepository;
+        private final SimpMessagingTemplate messagingTemplate;
+        private final RoomService roomService;
+        private final MessageRepository messageRepository;
 
-    @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleMessageSaved(MessageSavedEvent event) {
+        @Async
+        @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+        public void handleMessageSaved(MessageSavedEvent event) {
 
-        Message m = event.getMessage();
+                Message m = messageRepository
+                                .findById(event.getMessageId())
+                                .orElseThrow(() -> new IllegalStateException("Message not found"));
 
-        MessageDTO dto = MessageDTO.builder()
-                .id(m.getId())
-                .roomId(m.getRoomId())
-                .senderId(m.getSenderId())
-                .content(m.getContent())
-                .sentAt(m.getSentAt())
-                .build();
+                MessageDTO dto = MessageDTO.builder()
+                                .id(m.getId())
+                                .roomId(m.getRoomId())
+                                .senderId(m.getSenderId())
+                                .content(m.getContent())
+                                .sentAt(m.getSentAt())
+                                .build();
 
-        // 1️⃣ Chat window
-        messagingTemplate.convertAndSend(
-                "/topic/room/" + m.getRoomId(),
-                dto);
+                // 1️⃣ Chat window
+                messagingTemplate.convertAndSend(
+                                "/topic/room/" + m.getRoomId(),
+                                dto);
 
-        // 2️⃣ Chat list unread count (DB-accurate)
-        roomService.getRoomParticipants(m.getRoomId())
-                .forEach(userId -> {
-                    if (!userId.equals(m.getSenderId())) {
+                // 2️⃣ Unread count update
+                roomService.getRoomParticipants(m.getRoomId())
+                                .forEach(userId -> {
+                                        if (!userId.equals(m.getSenderId())) {
 
-                        int unreadCount = messageRepository.countUnread(
-                                m.getRoomId(), userId);
+                                                int unreadCount = messageRepository.countUnread(
+                                                                m.getRoomId(), userId);
 
-                        messagingTemplate.convertAndSendToUser(
-                                userId.toString(),
-                                "/queue/unread",
-                                new UnreadCountDTO(m.getRoomId(), unreadCount));
-                    }
-                });
+                                                messagingTemplate.convertAndSendToUser(
+                                                                userId.toString(),
+                                                                "/queue/unread",
+                                                                new UnreadCountDTO(m.getRoomId(), unreadCount));
+                                        }
+                                });
 
-        // 🔔 Chat list last message update
-        roomService.getRoomParticipants(m.getRoomId())
-                .forEach(userId -> {
-                    messagingTemplate.convertAndSend(
-                            "/topic/chatlist/" + userId,
-                            Map.of(
-                                    "type", "LAST_MESSAGE",
-                                    "roomId", m.getRoomId(),
-                                    "msg", roomPreview(m.getContent()),
-                                    "time", TimeFormatter.format(m.getSentAt())));
-                });
+                // 3️⃣ Chat list last message update
+                roomService.getRoomParticipants(m.getRoomId())
+                                .forEach(userId -> {
+                                        messagingTemplate.convertAndSend(
+                                                        "/topic/chatlist/" + userId,
+                                                        Map.of(
+                                                                        "type", "LAST_MESSAGE",
+                                                                        "roomId", m.getRoomId(),
+                                                                        "msg", roomPreview(m.getContent()),
+                                                                        "time", TimeFormatter.format(m.getSentAt())));
+                                });
+        }
 
-    }
-
-    private String roomPreview(String content) {
-        if (content == null)
-            return "";
-        return content.length() > 100 ? content.substring(0, 100) : content;
-    }
-
+        private String roomPreview(String content) {
+                if (content == null)
+                        return "";
+                return content.length() > 100 ? content.substring(0, 100) : content;
+        }
 }

@@ -162,7 +162,7 @@ export default function ChatList() {
       unreadSubRef.current?.unsubscribe();
     };
 
-  }, [client, connected, userLoggedInId, selectedContact]);
+  }, [client, connected, userLoggedInId]);
 
 
   const sendRequest = async (targetId) => {

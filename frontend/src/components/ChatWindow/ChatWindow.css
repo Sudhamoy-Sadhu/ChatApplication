@@ -241,7 +241,6 @@
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    flex-direction: column;
     box-shadow: 3px 3px 20px 5px #142532;
     align-self: flex-end;
     background: #7777f2;

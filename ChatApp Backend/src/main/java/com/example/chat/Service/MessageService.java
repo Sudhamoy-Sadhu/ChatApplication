@@ -36,7 +36,7 @@ public class MessageService {
                 .content(content)
                 .sentAt(Instant.now())
                 .readByUserIds(new HashSet<>(List.of(senderId)))
-                .deliveredToUserIds(new HashSet<>(List.of(senderId)))
+                .deliveredToUserIds(new HashSet<>())
                 .build();
 
         Message saved = messageRepository.save(message);
@@ -48,7 +48,7 @@ public class MessageService {
                 saved.getSentAt());
 
         // 🔑 publish AFTER save
-        eventPublisher.publishEvent(new MessageSavedEvent(saved));
+        eventPublisher.publishEvent(new MessageSavedEvent(saved.getId()));
 
         return saved;
     }
@@ -68,15 +68,21 @@ public class MessageService {
     @Transactional
     public void markRoomAsRead(Long roomId, Long userId) {
         List<Message> unread = messageRepository.findUnreadMessages(roomId, userId);
+
         for (Message m : unread) {
+            // 1. Auto-correct Delivery Status
+            if (!m.getDeliveredToUserIds().contains(userId)) {
+                m.getDeliveredToUserIds().add(userId);
+            }
+
+            // 2. Mark as Read
             if (!m.getReadByUserIds().contains(userId)) {
                 m.getReadByUserIds().add(userId);
 
+                // Notify Sender: "Your message was READ"
                 messagingTemplate.convertAndSend(
                         "/topic/receipt/" + m.getSenderId(),
-                        Map.of(
-                                "messageId", m.getId(),
-                                "status", "READ"));
+                        Map.of("messageId", m.getId(), "roomId", m.getRoomId(), "status", "READ"));
             }
         }
         messageRepository.saveAll(unread);
@@ -103,19 +109,65 @@ public class MessageService {
 
     @Transactional
     public void markAllRoomsAsDelivered(Long userId) {
+
+        // 1️⃣ Get all undelivered messages for this user
         List<Message> undelivered = messageRepository.findAllUndelivered(userId);
 
-        undelivered.forEach(m -> {
-            m.getDeliveredToUserIds().add(userId);
+        if (undelivered.isEmpty())
+            return;
 
+        // 2️⃣ Mark delivered safely
+        undelivered.forEach(m -> {
+            messageRepository.markDeliveredSafe(
+                    List.of(m.getRoomId()),
+                    userId);
+        });
+
+        // 3️⃣ Notify sender PER MESSAGE (this is critical)
+        undelivered.forEach(m -> {
             messagingTemplate.convertAndSend(
                     "/topic/receipt/" + m.getSenderId(),
                     Map.of(
                             "messageId", m.getId(),
+                            "roomId", m.getRoomId(),
                             "status", "DELIVERED"));
         });
+    }
 
-        messageRepository.saveAll(undelivered);
+    @Transactional
+    public void processAcknowledgment(Long messageId, String status, Long userId) {
+        Message message = messageRepository.findById(messageId).orElse(null);
+        if (message == null)
+            return;
+
+        // Prevent processing if already marked
+        if ("DELIVERED".equals(status)) {
+            if (message.getDeliveredToUserIds().contains(userId))
+                return; // Idempotency check
+            message.getDeliveredToUserIds().add(userId);
+            messageRepository.markDeliveredOne(messageId, userId);
+        } else if ("READ".equals(status)) {
+            // If read, it implies delivered too
+            if (!message.getDeliveredToUserIds().contains(userId)) {
+                message.getDeliveredToUserIds().add(userId);
+                messageRepository.markDeliveredOne(messageId, userId);
+            }
+            if (message.getReadByUserIds().contains(userId))
+                return;
+            message.getReadByUserIds().add(userId);
+            // You might need a custom query for adding read safely or just save:
+            messageRepository.save(message);
+        }
+
+        // 🚀 REAL-TIME NOTIFICATION TO SENDER
+        // This makes the tick change instantly on the sender's screen
+        messagingTemplate.convertAndSend(
+                "/topic/receipt/" + message.getSenderId(),
+                Map.of(
+                        "messageId", message.getId(),
+                        "roomId", message.getRoomId(),
+                        "status", status // "DELIVERED" or "READ"
+                ));
     }
 
 }

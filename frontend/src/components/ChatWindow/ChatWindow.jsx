@@ -26,6 +26,9 @@ export default function ChatWindow() {
   const messagesContainerRef = useRef(null);
   const isAtBottomRef = useRef(true);
   const initialLoadRef = useRef(true);
+  const pendingReceiptsRef = useRef(new Map());
+  const { receiptUpdate } = useContext(SocketContext);
+
 
 
   const isOnline = selectedContact?.status === "ACTIVE";
@@ -103,13 +106,32 @@ export default function ChatWindow() {
         );
 
         if (!isMounted) return;
+        const processedMessages = res.data.map(m => {
+          const pending = pendingReceiptsRef.current.get(m.id);
+          if (pending) pendingReceiptsRef.current.delete(m.id);
 
-        setMessages(
-          res.data.map(m => ({
+          return {
             ...m,
-            receiptStatus: computeReceipt(m)
-          }))
-        );
+            // Use the helper to determine if it's ✔, ✔✔, or blue ✔✔
+            receiptStatus: pending ?? computeReceipt(m)
+          };
+        });
+
+        setMessages(() => {
+          return res.data.map(m => {
+            const pending = pendingReceiptsRef.current.get(m.id);
+
+            if (pending) {
+              pendingReceiptsRef.current.delete(m.id);
+            }
+
+            return {
+              ...m,
+              receiptStatus: pending ?? computeReceipt(m)
+            };
+          });
+        });
+
 
         requestAnimationFrame(() => {
           scrollToBottom();
@@ -127,19 +149,26 @@ export default function ChatWindow() {
       `/topic/room/${selectedContact.roomId}`,
       (msg) => {
         const message = JSON.parse(msg.body);
-        if (message.roomId !== selectedContact.roomId) return;
-
         const sentByMe = Number(message.senderId) === Number(currentUserId);
 
-        setMessages(prev => [
-          ...prev,
-          {
-            ...message,
-            receiptStatus: sentByMe ? "SENT" : undefined
-          }
-        ]);
+        if (!sentByMe && document.hasFocus()) {
+          // ONLY send READ here. DELIVERED is now handled by SocketProvider globally.
+          client.publish({
+            destination: "/app/chat.ack",
+            body: JSON.stringify({
+              messageId: message.id,
+              status: "READ",
+            }),
+          });
+        }
 
-        if (sentByMe || isAtBottomRef.current) {
+
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === message.id)) return prev;
+          return [...prev, { ...message, receiptStatus: sentByMe ? "SENT" : undefined }];
+        });
+
+        if (isAtBottomRef.current) {
           requestAnimationFrame(scrollToBottom);
         }
       }
@@ -152,27 +181,30 @@ export default function ChatWindow() {
   }, [selectedContact?.roomId, client, connected, currentUserId]);
 
 
+
   useEffect(() => {
     if (!selectedContact) return;
-    if (!isAtBottomRef.current) return;
-    if (initialLoadRef.current) return;
     if (messages.length === 0) return;
+    if (initialLoadRef.current) return;
 
     const lastMsg = messages[messages.length - 1];
 
-    if (
+    const isReceiver =
       Number(lastMsg.senderId) !== Number(currentUserId) &&
-      lastReadMsgRef.current !== lastMsg.id
-    ) {
-      lastReadMsgRef.current = lastMsg.id;
+      Number(selectedContact.userId) === Number(lastMsg.senderId);
 
-      axios.post(
-        `http://localhost:8080/messages/${selectedContact.roomId}/mark-read`,
-        {},
-        { withCredentials: true }
-      ).catch(() => { });
+    if (!isReceiver) return;
+    if (lastReadMsgRef.current === lastMsg.id) return;
 
-      // 🔑 FRONTEND GUARANTEE
+    lastReadMsgRef.current = lastMsg.id;
+
+    axios.post(
+      `http://localhost:8080/messages/${selectedContact.roomId}/mark-read`,
+      {},
+      { withCredentials: true }
+    ).catch(() => { });
+
+    if (isReceiver) {
       setContacts(prev =>
         prev.map(c =>
           c.roomId === selectedContact.roomId
@@ -181,44 +213,73 @@ export default function ChatWindow() {
         )
       );
     }
-  }, [messages]);
+
+  }, [messages, selectedContact?.roomId]);
 
 
 
-  const receiptSubRef = useRef(null);
 
+  const RECEIPT_PRIORITY = { SENT: 1, DELIVERED: 2, READ: 3 };
+
+  // Inside component:
   useEffect(() => {
-    if (!client || !connected || !currentUserId) return;
+    if (!receiptUpdate) return;
+    const { messageId, status } = receiptUpdate;
 
-    receiptSubRef.current?.unsubscribe();
-
-    receiptSubRef.current = client.subscribe(
-      `/topic/receipt/${currentUserId}`,
-      (msg) => {
-        const { messageId, status } = JSON.parse(msg.body);
-
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === messageId
-              ? { ...m, receiptStatus: status }
-              : m
-          )
-        );
+    setMessages(prev => {
+      const exists = prev.some(m => m.id === messageId);
+      if (!exists) {
+        pendingReceiptsRef.current.set(messageId, status);
+        return prev;
       }
-    );
-
-    return () => receiptSubRef.current?.unsubscribe();
-  }, [client, connected, currentUserId]);
-
+      return prev.map(m => {
+        if (m.id !== messageId) return m;
+        if (RECEIPT_PRIORITY[status] <= RECEIPT_PRIORITY[m.receiptStatus]) return m;
+        return { ...m, receiptStatus: status };
+      });
+    });
+  }, [receiptUpdate]);
 
 
   const computeReceipt = (m) => {
-    if (!selectedContact) return "SENT";
+    if (Number(m.senderId) !== Number(currentUserId)) return undefined;
 
-    if (m.readByUserIds?.includes(selectedContact.userId)) return "READ";
-    if (m.deliveredToUserIds?.includes(selectedContact.userId)) return "DELIVERED";
+    // Check if anyone else in the room (other than me) has read it
+    const othersRead = m.readByUserIds?.some(id => Number(id) !== Number(currentUserId));
+    if (othersRead) return "READ";
+
+    // Check if anyone else has received it
+    const othersDelivered = m.deliveredToUserIds?.some(id => Number(id) !== Number(currentUserId));
+    if (othersDelivered) return "DELIVERED";
+
     return "SENT";
   };
+
+  useEffect(() => {
+    const handleFocus = () => {
+      // When user returns to tab, find last message received from contact and mark read
+      if (messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        const isFromContact = Number(lastMsg.senderId) === Number(selectedContact?.userId);
+
+        if (isFromContact && client && connected) {
+          client.publish({
+            destination: "/app/chat.ack",
+            body: JSON.stringify({
+              messageId: lastMsg.id,
+              status: "READ",
+            }),
+          });
+
+          // Also call the REST endpoint to clear unread counts in DB
+          axios.post(`http://localhost:8080/messages/${selectedContact.roomId}/mark-read`, {}, { withCredentials: true });
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [messages, selectedContact, client, connected]);
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
