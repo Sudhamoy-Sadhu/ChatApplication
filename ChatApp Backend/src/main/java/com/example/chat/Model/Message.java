@@ -79,6 +79,8 @@ public class Message {
      */
 
     @ElementCollection
+    @CollectionTable(name = "message_read", joinColumns = @JoinColumn(name = "message_id"))
+    @Column(name = "user_id")
     Set<Long> readByUserIds;
 
     @ElementCollection

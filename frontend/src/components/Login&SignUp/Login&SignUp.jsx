@@ -107,9 +107,9 @@ const LoginSignupPage = () => {
           password: formData.password,
         }, { withCredentials: true });
 
-        const { id, username, email, status } = response.data;
+        const { id, username, email, profilePicture, status } = response.data;
 
-        login({ id, username, email, status });
+        login({ id, username, email, profilePicture, status });
         toast.success("Login successful!", { autoClose: 1500 });
         setFormData({ email: "", password: "" });
         setTimeout(() => navigate("/"), 1800);

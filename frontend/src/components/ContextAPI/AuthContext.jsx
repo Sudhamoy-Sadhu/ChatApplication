@@ -49,9 +49,9 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       setLoading(true);
-      const userData = Cookies.get("userData");
+      const cookieData = Cookies.get("userData");
 
-      if (!userData) {
+      if (!cookieData) {
         setIsAuthenticated(false);
         setLoading(false);
         return;
@@ -60,12 +60,20 @@ export const AuthProvider = ({ children }) => {
       try {
         // Try to refresh access_token if expired
         await axios.post("http://localhost:8080/auth/refresh", {}, { withCredentials: true });
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        setUserId(parsedUser.id);
+        const response = await axios.get("http://localhost:8080/users/profile-data", { withCredentials: true});
+
+        const userData = response.data;
+        if (userData.profilePicture) {
+          userData.profilePicture = `data:image/jpeg;base64,${userData.profilePicture}`;
+        }
+        console.log(userData.profilePicture);
+
+        setUser(userData);
+        setUserId(userData.id);
         setIsAuthenticated(true);
       } catch (_) {
         // Refresh failed → logout
+        console.error("Session restoration failed");
         await handleLogout();
       } finally {
         setLoading(false);
@@ -79,14 +87,20 @@ export const AuthProvider = ({ children }) => {
   // Login
   // ================================
   const login = (userData) => {
+    const formattedPicture = userData.profilePicture 
+      ? `data:image/jpeg;base64,${userData.profilePicture}` 
+      : null;
+
     const normalizedUser = {
       id: Number(userData.id),
       username: userData.username,
       email: userData.email,
+      profilePicture: formattedPicture,
       status: userData.status,
     };
 
-    Cookies.set("userData", JSON.stringify(normalizedUser), { expires: 1 });
+    const { profilePicture, ...cookieData } = normalizedUser;
+    Cookies.set("userData", JSON.stringify(cookieData), { expires: 1 });
     setUser(normalizedUser);
     setIsAuthenticated(true);
   };
@@ -106,7 +120,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout: handleLogout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, isAuthenticated, login, logout: handleLogout, loading }}>
       {children}
     </AuthContext.Provider>
   );

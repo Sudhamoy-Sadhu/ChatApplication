@@ -59,12 +59,12 @@ export default function ChatWindow() {
 
     if (
       updated.status !== selectedContact.status ||
-      updated.profileImageUrl !== selectedContact.profileImageUrl
+      updated.profilePicture !== selectedContact.profilePicture
     ) {
       setSelectedContact(prev => ({
         ...prev,
         status: updated.status,
-        profileImageUrl: safeImage(updated.profileImageUrl)
+        profilePicture: safeImage(updated.profilePicture)
       }));
     }
   }, [contacts]);
@@ -342,7 +342,7 @@ export default function ChatWindow() {
       <div className="chat-header">
         <div className="sender-info">
           <div className="avatar">
-            <img src={selectedContact.profileImageUrl || "/assets/default-logo.png"} alt=""></img>
+            <img src={selectedContact.profilePicture || "/assets/default-logo.png"} alt=""></img>
           </div>
 
           <h3>
@@ -374,7 +374,7 @@ export default function ChatWindow() {
 
         {messages.length === 0 && (
           <div className="new-chat">
-            <span><img src={selectedContact.profileImageUrl || "/assets/default-logo.png"} alt="" /></span>
+            <span><img src={selectedContact.profilePicture || "/assets/default-logo.png"} alt="" /></span>
             <h2>{selectedContact.username}</h2>
             <p>Start Chatting with {selectedContact.username} by sending Hi!</p>
             <button>Send Hello</button>

@@ -1,9 +1,11 @@
 package com.example.chat.Service;
 
+import java.util.Base64;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.chat.DTO.ContactDTO;
 import com.example.chat.Model.Contact;
@@ -19,8 +21,9 @@ public class ContactService {
     private ContactRepo contactRepo;
 
     @Autowired
-    private MessageService messageService;  
+    private MessageService messageService;
 
+    @Transactional(readOnly = true)
     public List<ContactDTO> getContactsForUser(Long userId) {
 
         List<Contact> contacts = contactRepo.findAllByUserId(userId);
@@ -30,7 +33,7 @@ public class ContactService {
                     User other = contact.getContactUser();
                     Room room = contact.getRoom();
                     int unreadCount = 0;
-                    if(room != null){
+                    if (room != null) {
                         unreadCount = messageService.getUnreadCount(room.getId(), userId);
                     }
 
@@ -41,7 +44,9 @@ public class ContactService {
                             .userId(other.getId())
                             .username(other.getUsername())
                             .email(other.getEmail())
-                            .profileImageUrl(other.getProfilePicture() != null ? "some-url" : null)
+                            .profilePicture(other.getProfilePicture() != null
+                                    ? Base64.getEncoder().encodeToString(other.getProfilePicture())
+                                    : null)
                             .status(other.getStatus().name())
                             .lastSeen(other.getUpdatedAt())
 

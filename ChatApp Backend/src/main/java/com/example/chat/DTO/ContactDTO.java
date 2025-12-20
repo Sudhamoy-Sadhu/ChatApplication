@@ -14,7 +14,7 @@ public class ContactDTO {
     private Long userId;
     private String username;
     private String email;
-    private String profileImageUrl;
+    private String profilePicture;
     private String status;
     private Instant lastSeen;
     private String lastMessage;

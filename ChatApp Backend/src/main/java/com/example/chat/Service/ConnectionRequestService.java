@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.chat.Model.ConnectionRequest;
 import com.example.chat.Model.Contact;
@@ -60,6 +61,7 @@ public class ConnectionRequestService {
                 .orElse(ConnectionRequest.Status.NONE);
     }
 
+    @Transactional
     public List<Map<String, Object>> getAllConnections(Long userId) {
         List<ConnectionRequest> connections = connectionRequestRepo.findAllRelatedToUser(userId);
 

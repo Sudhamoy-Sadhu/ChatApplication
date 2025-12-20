@@ -49,8 +49,7 @@ public class User {
 
     private Instant updatedAt;
 
-    @Lob
-    @Column(name = "profile_picture")
+    @Column(name = "profile_picture", columnDefinition = "bytea")
     private byte[] profilePicture;
 
     public enum Status {

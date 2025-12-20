@@ -1,65 +1,185 @@
+/* Main container background adjusted to match the darker tone of the design */
 .profile-main {
     width: 100%;
+    height: 100vh;
     margin: 0 auto;
     padding: 25px;
     box-sizing: border-box;
-    background: #ffffff;
-    border-radius: 12px;
+    /* Kept your gradient but ensure it sits nicely with the new dark elements */
+    background-image: linear-gradient(#11293B, #0b1924);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    scroll-behavior: smooth;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
 }
+
+
 
 .profile-img-div {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-bottom: 24px;
+    justify-content: center;
+    width: 100%;
+    /* Added extra margin bottom to account for the glowing effect space */
+    margin-top: 20px;
 }
 
+/* UPDATED: Added gold border and glow effect */
 .profile-img-div img {
     width: 120px;
     height: 120px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid #e5e7eb;
+    aspect-ratio: 1/1;
+    /* Gold border */
+    border: 3px solid #cda45e;
+    /* Outer gold glow */
+    box-shadow: 0 0 20px rgba(205, 164, 94, 0.4);
 }
 
+/* UPDATED: Changed button to gold to match the image */
 .profile-img-div button {
-    margin-top: 12px;
-    padding: 8px 14px;
-    background: #007bff;
-    color: white;
+    position: relative;
+    top: -50px;
+    right: -60px;
+    /* Gold background */
+    background: #cda45e;
+    /* Dark text color for contrast on gold */
+    color: #142532;
     border: none;
-    border-radius: 6px;
+    border-radius: 50%;
     font-size: 14px;
     cursor: pointer;
     transition: 0.2s;
+    height: 30px;
+    width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .profile-img-div button:hover {
-    background: #0069d9;
+    background: #b38f52;
 }
 
-.profile-name {
+.profile-details {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
     text-align: center;
-    margin-bottom: 24px;
+    width: 100%;
+    gap: 5px;
+    margin-bottom: 30px;
+    /* Increased spacing slightly */
 }
 
-.profile-name h1 {
-    font-size: 22px;
+.username {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+/* UPDATED: Name color changed to gold */
+.username h1 {
+    font-size: 24px;
+    /* Slightly larger */
     margin: 0;
     font-weight: 600;
-    color: #333;
+    color: #cda45e;
+    /* Gold color */
+    letter-spacing: 0.5px;
 }
 
+/* UPDATED: Icon color changed to gold */
+.username button {
+    background: none;
+    color: #cda45e;
+    /* Gold color */
+    border: none;
+    border-radius: 10%;
+    font-size: 16px;
+    /* Slightly larger icon */
+    cursor: pointer;
+    transition: 0.2s;
+    height: 20px;
+    width: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+        transform: scale(1.1);
+    }
+}
+
+.user-email {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    gap: 5px;
+}
+
+/* UPDATED: Email icon color */
+.user-email button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: none;
+    border-radius: 10%;
+    color: #8a96a3;
+    /* Muted blue-grey */
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+
+    &:hover {
+        transform: scale(1.1);
+    }
+}
+
+/* UPDATED: Email text color */
 .profile-email {
     font-size: 14px;
-    color: #666;
+    color: #8a96a3;
+    /* Muted blue-grey */
     margin-top: 4px;
 }
 
+.profile-body{
+    overflow: scroll;
+    scroll-behavior: smooth;
+    height: 100%;
+    width: 90%;
+    padding: 2%;
+    border: 1px solid #cda45e;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5%;
+}
+.profile-body::-webkit-scrollbar {
+    display: none;
+
+}
+.profile-body::-webkit-scrollbar-thumb {
+    background: #cda45e;
+    border-radius: 10px;
+}
+.profile-main::-webkit-scrollbar {
+    display: none;
+
+}
+
 .profile-section {
-    margin-bottom: 22px;
     display: flex;
     flex-direction: column;
 }
@@ -68,43 +188,92 @@
     font-size: 15px;
     font-weight: 500;
     margin-bottom: 8px;
-    color: #333;
+    color: #c2bebe;
+    /* Kept original light grey for labels */
 }
 
+/* UPDATED: Textarea styling for dark theme with subtle depth */
 .profile-section textarea {
     width: 100%;
     min-height: 80px;
-    padding: 10px;
+    padding: 12px;
+    /* Slightly more padding */
     resize: none;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    /* Dark background */
+    background-color: #1e2e3e;
+    /* Light text */
+    color: #e0e0e0;
+    /* Dark subtle border */
+    border: 1px solid #2c3e50;
+    border-radius: 8px;
+    /* Slightly more rounded */
     font-size: 14px;
     transition: 0.2s;
+    font-family: 'Inter', sans-serif;
+    /* Ensure font matches */
+    /* Subtle shadow for depth */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* UPDATED: Focus state with gold accent */
 .profile-section textarea:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: #cda45e;
+    /* Gold border on focus */
+    box-shadow: 0 0 20px rgba(205, 164, 94, 0.4);
 }
 
+/* UPDATED: Character count color for visibility */
 .profile-section small {
-    margin-top: 4px;
+    margin-top: 6px;
     font-size: 12px;
-    color: #777;
+    color: #8a96a3;
+    /* Lighter grey */
     text-align: right;
 }
 
+/* UPDATED: Select styling to match textarea dark theme */
 .profile-section select {
     width: 100%;
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
+    padding: 12px;
+    border-radius: 8px;
+    /* Dark background */
+    background-color: #1e2e3e;
+    /* Light text */
+    color: #e0e0e0;
+    /* Dark subtle border */
+    border: 1px solid #2c3e50;
     font-size: 14px;
     cursor: pointer;
     transition: 0.2s;
+    font-family: 'Inter', sans-serif;
+    /* Subtle shadow for depth */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* Fix for standard select arrow color in some browsers */
+    color-scheme: dark;
 }
 
+/* UPDATED: Focus state for select */
 .profile-section select:focus {
-    border-color: #007bff;
+    border-color: #cda45e;
+    /* Gold border on focus */
     outline: none;
+    box-shadow: 0 0 20px rgba(205, 164, 94, 0.4);
+}
+
+.apply-changes{
+    padding: 8px;
+    font-size: 14px;
+    color: #e0e0e0;
+    background: #1e2e3e;
+    border-radius: 8px;
+    border: 1px solid #cda45e;
+    &:hover{
+        background: #cda45e;
+        box-shadow: 0 0 20px rgba(205, 164, 94, 0.4);
+        cursor: pointer;
+        color: #000;
+        transition: 0.5s;
+
+    }
 }

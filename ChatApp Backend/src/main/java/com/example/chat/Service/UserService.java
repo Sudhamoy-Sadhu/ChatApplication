@@ -1,8 +1,11 @@
 package com.example.chat.Service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,11 +15,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.chat.DTO.ForgotPassDTO;
+import com.example.chat.DTO.UserResponseDTO;
 import com.example.chat.DTO.UserSearchDTO;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
 import jakarta.transaction.Transactional;
+import net.coobird.thumbnailator.Thumbnails;
 
 @Service
 public class UserService {
@@ -64,25 +69,43 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    public void updateProfilePicture(Long userId, MultipartFile file) throws IOException {
-        // 1. Check file size
-        if (file.getSize() > 10 * 1024 * 1024) { // 10 MB
-            throw new IllegalArgumentException("File size exceeds 10MB");
+    public byte[] updateProfilePicture(Long userId, MultipartFile file) throws IOException {
+        // 1. Basic Validation (Same as before)
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File cannot be empty");
         }
 
-        // 2. Check file type
         String contentType = file.getContentType();
-        if (!contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Invalid file format");
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Only image files are allowed");
         }
 
-        // 3. Fetch user
+        // 2. Fetch user
         User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-        // 4. Save image as byte array
-        user.setProfilePicture(file.getBytes());
+        // 3. WHATSAPP OPTIMIZATION: Compress and Resize
+        // We convert the file to a 400x400 square and reduce quality to 70%
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        Thumbnails.of(file.getInputStream())
+                .size(400, 400) // Resize to a standard profile size
+                .crop(net.coobird.thumbnailator.geometry.Positions.CENTER) // Make it a perfect square
+                .outputFormat("jpg") // Force JPG for better compression than PNG
+                .outputQuality(0.70) // 70% quality is the sweet spot for web
+                .toOutputStream(outputStream);
+
+        byte[] compressedImage = outputStream.toByteArray();
+
+        // 4. Save the optimized version
+        user.setProfilePicture(compressedImage);
         userRepo.save(user);
+
+        // Optional: Log the size reduction for your own reference
+        System.out.println("Original size: " + file.getSize() / 1024 + " KB");
+        System.out.println("Optimized size: " + compressedImage.length / 1024 + " KB");
+
+        return compressedImage;
     }
 
     public void changePassword(ForgotPassDTO forgotPassDTO) {
@@ -130,4 +153,16 @@ public class UserService {
             messagingTemplate.convertAndSend("/topic/chatlist/" + cId, dto);
         }
     }
+
+    public UserResponseDTO getProfileData(Long id) {
+        User user = userRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+        UserResponseDTO dto = new UserResponseDTO();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setEmail(user.getEmail());
+        dto.setStatus(user.getStatus());
+        return dto;
+    }
+
 }

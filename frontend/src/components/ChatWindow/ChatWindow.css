@@ -61,7 +61,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background: white;
+    /* background: white; */
     width: 50px;
     height: 50px;
     border-radius: 50%;

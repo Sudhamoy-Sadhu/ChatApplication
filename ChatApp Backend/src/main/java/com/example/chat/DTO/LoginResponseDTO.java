@@ -12,6 +12,7 @@ public class LoginResponseDTO {
     private final String accessToken;
     private final String username;
     private final String email;
+    private byte[] profilePicture;
     private final User.Status status;
 }
 

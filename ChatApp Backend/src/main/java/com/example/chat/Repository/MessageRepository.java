@@ -54,8 +54,8 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
   @Query(value = """
         INSERT INTO message_delivered (message_id, user_id)
         SELECT m.id, :userId
-        FROM message m
-        WHERE m.room_id IN :roomIds
+        FROM messages m
+        WHERE m.room_id IN (:roomIds)
           AND m.sender_id <> :userId
           AND NOT EXISTS (
               SELECT 1 FROM message_read mr

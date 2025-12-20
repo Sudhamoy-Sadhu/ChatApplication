@@ -34,7 +34,9 @@ export default function ChatList() {
 
         const sorted = response.data.map(c => ({
           ...c,
-          unreadCount: c.unreadCount ?? 0
+          unreadCount: c.unreadCount ?? 0, profilePicture: c.profilePicture
+            ? `data:image/jpeg;base64,${c.profilePicture}`
+            : "/assets/default-logo.png"
         })).sort((a, b) => {
           const t1 = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
           const t2 = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
@@ -117,7 +119,7 @@ export default function ChatList() {
               : prev
           );
         }
-        
+
         if (data.type === "READ_RESET") {
           const { roomId } = data;
 
@@ -206,7 +208,7 @@ export default function ChatList() {
         const isNotFound = user.exists === false;
         const username = user.username;
         const email = user.email;
-        const profileImageUrl = user.profileImageUrl || "/assets/default-logo.png";
+        const profilePicture = user.profilePicture || "/assets/default-logo.png";
         const lastMessage = user.lastMessage || "Start your conversation!";
         const lastMessageTime = user.lastMessageTime || "";
         const status = user.status ?? "INACTIVE";
@@ -232,7 +234,7 @@ export default function ChatList() {
                 setSelectedContact({
                   userId: user.id,
                   username,
-                  profileImageUrl: user.profileImageUrl ? user.profileImageUrl : "/assets/default-logo.png",
+                  profilePicture: user.profilePicture ? user.profilePicture : "/assets/default-logo.png",
                   email,
                   roomId,
                   roomName: user.roomName ?? user.username,
@@ -245,7 +247,7 @@ export default function ChatList() {
             }}
           >
             <div className="avatar">
-              <img src={profileImageUrl} alt="profile-dp" />
+              <img src={profilePicture} alt="profile-dp" />
             </div>
 
             <div className="chat-info">
