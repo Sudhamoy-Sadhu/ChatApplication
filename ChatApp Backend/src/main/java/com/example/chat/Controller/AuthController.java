@@ -23,6 +23,7 @@ import com.example.chat.Model.User;
 import com.example.chat.Repository.UserRepo;
 import com.example.chat.Service.JwtService;
 import com.example.chat.Service.UserService;
+import com.example.chat.Utils.ImageUtils;
 import com.nimbusds.jwt.SignedJWT;
 
 import jakarta.servlet.http.Cookie;
@@ -94,10 +95,11 @@ public class AuthController {
                 access,
                 user.getUsername(),
                 user.getEmail(),
-                user.getProfilePicture(),
+                ImageUtils.getProfilePicture(user.getProfilePicture()),
                 user.getStatus()));
     }
 
+    @Transactional
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(HttpServletRequest request,
             HttpServletResponse response) {
@@ -152,24 +154,20 @@ public class AuthController {
                 var jwt = SignedJWT.parse(oldRefresh);
                 Long id = Long.valueOf(jwt.getJWTClaimsSet().getSubject());
                 userService.setStatusOffline(id);
-            } catch (Exception ignoredException) {}
+            } catch (Exception ignoredException) {
+            }
             return ResponseEntity.status(401).body("Invalid refresh token");
         }
     }
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletRequest request,
-            HttpServletResponse response, Authentication authentication) {
-
-        if (authentication == null) {
-            return ResponseEntity.status(401)
-                    .body(Map.of("message", "Session expired", "status", "session_expired"));
-        }
-
-        Long id = Long.valueOf(authentication.getName());
-
+            HttpServletResponse response,
+            Authentication authentication) {
         String refresh = null;
-        // Extract refresh_token from cookies
+        Long userId = null;
+
+        // 1. Extract refresh_token from cookies first
         if (request.getCookies() != null) {
             for (Cookie c : request.getCookies()) {
                 if (c.getName().equals("refresh_token")) {
@@ -179,32 +177,46 @@ public class AuthController {
             }
         }
 
-        // Revoke token in DB/Redis store
+        // 2. Identify the user (either from the Access Token OR the Refresh Token)
+        try {
+            if (authentication != null) {
+                // Access token is still valid
+                userId = Long.valueOf(authentication.getName());
+            } else if (refresh != null) {
+                // Access token expired, but we can get the ID from the refresh token
+                var jwt = SignedJWT.parse(refresh);
+                userId = Long.valueOf(jwt.getJWTClaimsSet().getSubject());
+            }
+        } catch (Exception e) {
+            // If parsing fails, we proceed anyway to clear the cookies
+        }
+
+        // 3. Backend Cleanup: Revoke token and set status offline
         if (refresh != null) {
             jwtService.revokeRefreshToken(refresh);
         }
 
-        userService.setStatusOffline(id);
+        if (userId != null) {
+            userService.setStatusOffline(userId);
+        }
 
-        // 🔥 Clear REFRESH TOKEN COOKIE
+        // 4. Clear Cookies: Ensure browser deletes them
         ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")
                 .httpOnly(true)
-                .secure(false) // true in production
-                .path("/auth/refresh") // same path as login
-                .maxAge(0) // delete
-                .sameSite("Lax") // must match login cookie
+                .secure(false) // Set true in production
+                .path("/auth/refresh")
+                .maxAge(0)
+                .sameSite("Lax")
                 .build();
 
-        // 🔥 Clear ACCESS TOKEN COOKIE
         ResponseCookie clearAccess = ResponseCookie.from("access_token", "")
                 .httpOnly(true)
-                .secure(false) // true in production
-                .path("/") // same path as login
-                .maxAge(0) // delete
-                .sameSite("Lax") // must match login cookie
+                .secure(false) // Set true in production
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
                 .build();
 
-        // Add both cookies to response
         response.addHeader("Set-Cookie", clearRefresh.toString());
         response.addHeader("Set-Cookie", clearAccess.toString());
 

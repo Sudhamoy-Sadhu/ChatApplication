@@ -90,7 +90,7 @@ export default function ConnectionRequests() {
                                 {/* Profile Pic */}
                                 <div className="cr-avatar-section">
                                     <img
-                                        src={displayUser.profilePic || "/assets/default-logo.png"}
+                                        src={displayUser.profilePicture || "/assets/default-logo.png"}
                                         alt="profile"
                                         className="cr-avatar"
                                     />

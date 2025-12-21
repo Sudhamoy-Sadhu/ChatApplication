@@ -20,6 +20,8 @@ import com.example.chat.DTO.UserSearchDTO;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
+import com.example.chat.Utils.ImageUtils;
+
 import jakarta.transaction.Transactional;
 import net.coobird.thumbnailator.Thumbnails;
 
@@ -62,7 +64,7 @@ public class UserService {
                             user.getId(),
                             user.getUsername(),
                             user.getEmail(),
-                            user.getProfilePicture(),
+                            ImageUtils.getProfilePicture(user.getProfilePicture()),
                             true,
                             connected);
                 })
@@ -156,13 +158,14 @@ public class UserService {
 
     public UserResponseDTO getProfileData(Long id) {
         User user = userRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
-        UserResponseDTO dto = new UserResponseDTO();
-        dto.setId(user.getId());
-        dto.setUsername(user.getUsername());
-        dto.setEmail(user.getEmail());
-        dto.setStatus(user.getStatus());
-        return dto;
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return new UserResponseDTO(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                ImageUtils.getProfilePicture(user.getProfilePicture()),
+                user.getStatus());
     }
 
 }

@@ -11,7 +11,7 @@ public class UserSearchDTO {
     private Long id;
     private String username;
     private String email;
-    private byte[] profilePicture;
+    private String profilePicture;
     private boolean exists; 
     private boolean connected;
 }

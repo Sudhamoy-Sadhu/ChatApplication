@@ -4,6 +4,20 @@ import Cookies from "js-cookie";
 
 export const AuthContext = createContext();
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userId, setUserId] = useState(null);
@@ -21,18 +35,39 @@ export const AuthProvider = ({ children }) => {
 
         if (!originalRequest || !originalRequest.url) return Promise.reject(error);
 
-        // Only retry if user is logged in
-        if (!isAuthenticated) return Promise.reject(error);
+        // Avoid infinite loop on refresh endpoint or if not logged in
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          !originalRequest.url.includes("/auth/refresh") &&
+          isAuthenticated
+        ) {
 
-        // Avoid infinite loop
-        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes("/auth/refresh")) {
+          if (isRefreshing) {
+            // If refresh is already in progress, queue this request
+            return new Promise((resolve, reject) => {
+              failedQueue.push({ resolve, reject });
+            })
+              .then(() => axios(originalRequest))
+              .catch((err) => Promise.reject(err));
+          }
+
           originalRequest._retry = true;
+          isRefreshing = true;
+
           try {
+            // Attempt to get a new session
             await axios.post("http://localhost:8080/auth/refresh", {}, { withCredentials: true });
+
+            isRefreshing = false;
+            processQueue(null); // Resolve all waiting requests
+
             return axios(originalRequest);
-          } catch (_) {
+          } catch (refreshError) {
+            isRefreshing = false;
+            processQueue(refreshError); // Reject all waiting requests
             await handleLogout();
-            return Promise.reject(error);
+            return Promise.reject(refreshError);
           }
         }
 
@@ -60,16 +95,11 @@ export const AuthProvider = ({ children }) => {
       try {
         // Try to refresh access_token if expired
         await axios.post("http://localhost:8080/auth/refresh", {}, { withCredentials: true });
-        const response = await axios.get("http://localhost:8080/users/profile-data", { withCredentials: true});
+        const response = await axios.get("http://localhost:8080/users/profile-data", { withCredentials: true });
 
-        const userData = response.data;
-        if (userData.profilePicture) {
-          userData.profilePicture = `data:image/jpeg;base64,${userData.profilePicture}`;
-        }
-        console.log(userData.profilePicture);
 
-        setUser(userData);
-        setUserId(userData.id);
+        setUser(response.data);
+        setUserId(response.data.id);
         setIsAuthenticated(true);
       } catch (_) {
         // Refresh failed → logout
@@ -87,15 +117,12 @@ export const AuthProvider = ({ children }) => {
   // Login
   // ================================
   const login = (userData) => {
-    const formattedPicture = userData.profilePicture 
-      ? `data:image/jpeg;base64,${userData.profilePicture}` 
-      : null;
 
     const normalizedUser = {
       id: Number(userData.id),
       username: userData.username,
       email: userData.email,
-      profilePicture: formattedPicture,
+      profilePicture: userData.profilePicture,
       status: userData.status,
     };
 

@@ -17,6 +17,7 @@ import com.example.chat.DTO.LoginResponseDTO;
 import com.example.chat.Model.RefreshToken;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.RefreshTokenRepository;
+import com.example.chat.Utils.ImageUtils;
 import com.example.chat.Utils.PemUtils;
 import com.example.chat.Utils.TokenHashUtil;
 import com.nimbusds.jose.JOSEObjectType;
@@ -280,7 +281,7 @@ public class JwtService {
         String accessToken = createAccessToken(user, Set.of("USER"));
         String username = user.getUsername();
         String email = user.getEmail();
-        byte[] profilePicture = user.getProfilePicture();
+        String profilePicture = ImageUtils.getProfilePicture(user.getProfilePicture());
         User.Status status = user.getStatus();
         return new LoginResponseDTO(id,accessToken, username, email, profilePicture, status);
     }

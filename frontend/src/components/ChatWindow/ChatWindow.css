@@ -112,7 +112,7 @@
     gap: 8px;
     background-color: #09395D;
     background-image:
-        url("../../../public/assets/bg-img4.avif"),
+        url("../../../assets/bg-img4.avif"),
         linear-gradient(#11293B, #0b1924);
     background-repeat: repeat;
     /* repeat pattern */

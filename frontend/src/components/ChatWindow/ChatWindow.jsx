@@ -289,30 +289,28 @@ export default function ChatWindow() {
   };
 
   const sendingRef = useRef(false);
-  const sendMessage = async () => {
+  const sendMessage = async (customText = null) => {
     if (sendingRef.current) return;
-    if (!newMessage.trim() || !selectedContact) return;
+
+    const contentToSend = customText || newMessage.trim();
+
+    if (!contentToSend || !selectedContact) return;
 
     sendingRef.current = true;
 
     try {
       const payload = {
         roomId: selectedContact.roomId,
-        content: newMessage.trim(),
+        content: contentToSend,
       };
 
-      // Send to backend (DO NOT update messages here)
       await axios.post(
         "http://localhost:8080/messages/send",
         payload,
         { withCredentials: true }
       );
 
-      // Clear input only
-      setNewMessage("");
-
-      // Message will arrive via WebSocket:
-      // /topic/room/{roomId}
+      setNewMessage(""); // Clear input
     } catch (err) {
       console.error("Send message failed:", err);
       toast.error("Failed to send message");
@@ -320,7 +318,6 @@ export default function ChatWindow() {
       sendingRef.current = false;
     }
   };
-
 
   if (!selectedContact) {
     return (
@@ -372,14 +369,16 @@ export default function ChatWindow() {
           isAtBottomRef.current = atBottom;
         }}>
 
-        {messages.length === 0 && (
-          <div className="new-chat">
-            <span><img src={selectedContact.profilePicture || "/assets/default-logo.png"} alt="" /></span>
-            <h2>{selectedContact.username}</h2>
-            <p>Start Chatting with {selectedContact.username} by sending Hi!</p>
-            <button>Send Hello</button>
-          </div>
-        )}
+        <div className="new-chat">
+          <span><img src={selectedContact.profilePicture || "/assets/default-logo.png"} alt="" /></span>
+          <h2>{selectedContact.username}</h2>
+          {messages.length === 0 && (
+            <>
+              <p>Start Chatting with {selectedContact.username} by sending Hi!</p>
+              <button onClick={() => sendMessage("Hello!")}>Send Hello</button>
+            </>
+          )}
+        </div>
 
         {messages.map(msg => {
           const isSentByMe = Number(msg.senderId) === Number(currentUserId);

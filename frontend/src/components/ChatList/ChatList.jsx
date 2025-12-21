@@ -34,9 +34,7 @@ export default function ChatList() {
 
         const sorted = response.data.map(c => ({
           ...c,
-          unreadCount: c.unreadCount ?? 0, profilePicture: c.profilePicture
-            ? `data:image/jpeg;base64,${c.profilePicture}`
-            : "/assets/default-logo.png"
+          unreadCount: c.unreadCount ?? 0
         })).sort((a, b) => {
           const t1 = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
           const t2 = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
@@ -234,7 +232,7 @@ export default function ChatList() {
                 setSelectedContact({
                   userId: user.id,
                   username,
-                  profilePicture: user.profilePicture ? user.profilePicture : "/assets/default-logo.png",
+                  profilePicture,
                   email,
                   roomId,
                   roomName: user.roomName ?? user.username,

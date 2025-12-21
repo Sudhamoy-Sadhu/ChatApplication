@@ -1,6 +1,5 @@
 package com.example.chat.Service;
 
-import java.util.Base64;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +11,7 @@ import com.example.chat.Model.Contact;
 import com.example.chat.Model.Room;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.ContactRepo;
+import com.example.chat.Utils.ImageUtils;
 import com.example.chat.Utils.TimeFormatter;
 
 @Service
@@ -44,9 +44,7 @@ public class ContactService {
                             .userId(other.getId())
                             .username(other.getUsername())
                             .email(other.getEmail())
-                            .profilePicture(other.getProfilePicture() != null
-                                    ? Base64.getEncoder().encodeToString(other.getProfilePicture())
-                                    : null)
+                            .profilePicture(ImageUtils.getProfilePicture(other.getProfilePicture()))
                             .status(other.getStatus().name())
                             .lastSeen(other.getUpdatedAt())
 

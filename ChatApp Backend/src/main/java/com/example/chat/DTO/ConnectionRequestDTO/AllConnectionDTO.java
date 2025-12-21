@@ -17,11 +17,11 @@ public class AllConnectionDTO {
     private Long targetId;
     private String requesterName;
     private String requesterEmail;
-    private String requesterProfilePic;
+    private String requesterProfilePicture;
 
     private String targetName;
     private String targetEmail;
-    private String targetProfilePic;
+    private String targetProfilePicture;
 
     private String status;
 }

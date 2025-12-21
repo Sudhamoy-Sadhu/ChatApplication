@@ -1,6 +1,7 @@
 package com.example.chat.Service;
 
 import java.time.Instant;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,7 @@ import com.example.chat.Model.User;
 import com.example.chat.Repository.ConnectionRequestRepo;
 import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
+import com.example.chat.Utils.ImageUtils;
 
 @Service
 public class ConnectionRequestService {
@@ -77,13 +79,13 @@ public class ConnectionRequestService {
             requester.put("id", req.getRequesterId().getId());
             requester.put("name", req.getRequesterId().getUsername());
             requester.put("email", req.getRequesterId().getEmail());
-            requester.put("profilePic", req.getRequesterId().getProfilePicture());
+            requester.put("profilePicture", ImageUtils.getProfilePicture(req.getRequesterId().getProfilePicture()));
 
             Map<String, Object> target = new HashMap<>();
             target.put("id", req.getTargetId().getId());
             target.put("name", req.getTargetId().getUsername());
             target.put("email", req.getTargetId().getEmail());
-            target.put("profilePic", req.getTargetId().getProfilePicture());
+            target.put("profilePicture", ImageUtils.getProfilePicture(req.getTargetId().getProfilePicture()));
 
             dto.put("requester", requester);
             dto.put("target", target);
@@ -97,7 +99,7 @@ public class ConnectionRequestService {
         ConnectionRequest request = connectionRequestRepo.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found"));
 
-        User requester = request.getRequesterId(); 
+        User requester = request.getRequesterId();
         User target = request.getTargetId();
 
         // Update request status
