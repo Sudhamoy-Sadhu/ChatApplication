@@ -14,6 +14,7 @@ import { AuthProvider } from "./components/ContextAPI/AuthContext";
 import { SocketProvider } from "./components/ContextAPI/SocketContext";
 
 import axios from "axios";
+import { ToastProvider } from "./components/ContextAPI/ToastContext.jsx";
 
 axios.defaults.withCredentials = true;
 
@@ -24,7 +25,9 @@ root.render(
     <AuthProvider>
       <SocketProvider>
         <ChatProvider>
-          <App />
+          <ToastProvider>
+            <App />
+          </ToastProvider>
         </ChatProvider>
       </SocketProvider>
     </AuthProvider>

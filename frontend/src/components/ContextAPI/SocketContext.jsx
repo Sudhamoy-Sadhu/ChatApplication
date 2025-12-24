@@ -51,6 +51,12 @@ export function SocketProvider({ children }) {
 
     stompClient.onStompError = (frame) => {
       console.error("❌ STOMP broker error:", frame.headers["message"]);
+
+      if (frame.headers["message"]?.includes("Reject") || frame.headers["message"]?.includes("Auth")) {
+        console.log("🛑 Auth failure detected. Deactivating auto-reconnect.");
+        stompClient.deactivate();
+        setConnected(false);
+      }
     };
 
     stompClient.activate();

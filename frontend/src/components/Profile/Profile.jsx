@@ -3,6 +3,7 @@ import "./Profile.css"
 import { AuthContext } from "../ContextAPI/AuthContext";
 import { GrEdit, GrCheckmark, GrClose } from "react-icons/gr";
 import axios from "axios";
+import { useToast } from "../ContextAPI/ToastContext";
 
 export default function Profile() {
     const { user, setUser } = useContext(AuthContext);
@@ -17,6 +18,7 @@ export default function Profile() {
     const [isEditingEmail, setIsEditingEmail] = useState(false);
     const [newEmail, setNewEmail] = useState(user.email);
 
+    const { showToast } = useToast();
     const fileInputRef = useRef(null);
 
     // Trigger hidden file input
@@ -33,7 +35,7 @@ export default function Profile() {
         formData.append('file', file);
 
         try {
-            const response = await axios.post(`http://localhost:8080/users/profile-picture`, formData, {
+            const response = await axios.patch(`http://localhost:8080/users/profile-picture`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 withCredentials: true,
                 responseType: 'arraybuffer'
@@ -49,19 +51,18 @@ export default function Profile() {
 
             const newImageUrl = `data:image/jpeg;base64,${base64Image}`;
 
-            // 2. CRITICAL FIX: Ensure setUser exists before calling
             if (typeof setUser === 'function') {
                 setUser(prevUser => ({
                     ...prevUser,
-                    profileImageUrl: newImageUrl
+                    profilePicture: newImageUrl
                 }));
-                alert("Profile picture updated!");
+                showToast.success("Profile picture updated!");
             } else {
                 console.error("setUser is not defined in AuthContext. Check your Provider value.");
             }
 
         } catch (error) {
-            console.error("Upload failed", error);
+            showToast.error("Upload failed", error);
         }
     };
 

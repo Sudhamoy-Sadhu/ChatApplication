@@ -32,7 +32,7 @@ export default function ChatHome() {
           {activePage ==="home" && <ChatWindow/>}
         </div>
       </div>
-      <ToastContainer position="top-right" autoClose={2000} theme="light" />
+      <ToastContainer position="top-right" autoClose={1500} theme="light" />
     </>
   );
 }

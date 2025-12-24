@@ -2,16 +2,15 @@ package com.example.chat.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.chat.DTO.ForgotPassDTO;
@@ -21,8 +20,6 @@ import com.example.chat.Model.User;
 import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
 import com.example.chat.Utils.ImageUtils;
-
-import jakarta.transaction.Transactional;
 import net.coobird.thumbnailator.Thumbnails;
 
 @Service
@@ -71,43 +68,60 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
-    public byte[] updateProfilePicture(Long userId, MultipartFile file) throws IOException {
-        // 1. Basic Validation (Same as before)
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("File cannot be empty");
-        }
+@Transactional
+public byte[] updateProfilePicture(Long userId, MultipartFile file) throws IOException {
+   
+    if (file == null || file.isEmpty()) {
+        throw new IllegalArgumentException("File cannot be empty");
+    }
 
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Only image files are allowed");
-        }
+    User user = userRepo.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-        // 2. Fetch user
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+    byte[] finalImageBytes;
 
-        // 3. WHATSAPP OPTIMIZATION: Compress and Resize
-        // We convert the file to a 400x400 square and reduce quality to 70%
+    try {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         Thumbnails.of(file.getInputStream())
-                .size(400, 400) // Resize to a standard profile size
-                .crop(net.coobird.thumbnailator.geometry.Positions.CENTER) // Make it a perfect square
-                .outputFormat("jpg") // Force JPG for better compression than PNG
-                .outputQuality(0.70) // 70% quality is the sweet spot for web
+                .size(400, 400)
+                .crop(net.coobird.thumbnailator.geometry.Positions.CENTER)
+                .outputFormat("jpg") // Converts WebP/PNG/etc to JPG
+                .outputQuality(0.70)
                 .toOutputStream(outputStream);
 
-        byte[] compressedImage = outputStream.toByteArray();
+        finalImageBytes = outputStream.toByteArray();
+        
+        System.out.println("Optimization successful. Format: " + file.getContentType());
+    } catch (Exception e) {
+        // 4. FALLBACK: If Thumbnailator still fails, save original bytes so the app doesn't crash
+        System.err.println("Thumbnailator failed to process format: " + file.getContentType() + ". Saving original instead.");
+        e.printStackTrace();
+        finalImageBytes = file.getBytes();
+    }
 
-        // 4. Save the optimized version
-        user.setProfilePicture(compressedImage);
-        userRepo.save(user);
+    user.setProfilePicture(finalImageBytes);
+    
+    userRepo.saveAndFlush(user);
 
-        // Optional: Log the size reduction for your own reference
-        System.out.println("Original size: " + file.getSize() / 1024 + " KB");
-        System.out.println("Optimized size: " + compressedImage.length / 1024 + " KB");
+    System.out.println("Original size: " + file.getSize() / 1024 + " KB");
+    System.out.println("Final size: " + finalImageBytes.length / 1024 + " KB");
 
-        return compressedImage;
+    broadcastProfileUpdate(user);
+    
+    return finalImageBytes;
+}
+
+    private void broadcastProfileUpdate(User user) {
+        var dto = Map.of(
+                "type", "PROFILE_UPDATE",
+                "userId", user.getId(),
+                "profilePicture", ImageUtils.getProfilePicture(user.getProfilePicture()));
+
+        List<Long> contacts = contactRepo.findAllFriendIds(user.getId());
+        for (Long cId : contacts) {
+            messagingTemplate.convertAndSend("/topic/chatlist/" + cId, dto);
+        }
     }
 
     public void changePassword(ForgotPassDTO forgotPassDTO) {
