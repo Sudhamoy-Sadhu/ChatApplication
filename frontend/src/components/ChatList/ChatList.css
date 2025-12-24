@@ -31,15 +31,21 @@
     padding: 3% 5%;
     gap: 5%;
     cursor: pointer;
+
     &:hover {
         background: #1452825c;
     }
 
 }
 
-.last-message{
+.chat-item.active {
+    background: #1452825c;
+    border-left: 2px solid white;
+}
+
+.last-message {
     font-size: smaller;
-    width: 80%; 
+    width: 80%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -85,7 +91,7 @@
     align-items: center;
 }
 
-.details-name{
+.details-name {
     width: 80%;
     display: flex;
     justify-content: center;
@@ -94,7 +100,7 @@
     overflow: hidden;
 }
 
-.chat-time{
+.chat-time {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -106,7 +112,7 @@
     font-weight: 400;
 }
 
-.unread-badge{
+.unread-badge {
     display: flex;
     justify-content: center;
     align-items: center;

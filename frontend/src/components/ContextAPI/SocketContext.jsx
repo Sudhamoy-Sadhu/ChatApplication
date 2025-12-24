@@ -28,15 +28,15 @@ export function SocketProvider({ children }) {
 
     console.log("🔐 Connecting WebSocket...");
 
-    const sock = new SockJS("http://localhost:8080/ws", null, { withCredentials: true });
-
     const stompClient = new Client({
-      webSocketFactory: () => sock,
-      reconnectDelay: 5000, // auto reconnect
+      webSocketFactory: () =>
+        new SockJS("http://localhost:8080/ws", null, { withCredentials: true }),
+      reconnectDelay: 5000,
       debug: (msg) => {
-        if (process.env.NODE_ENV === "development") console.log("[STOMP]", msg);
+        if (import.meta.env.DEV) console.log("[STOMP]", msg);
       },
     });
+
 
     // Connection handlers
     stompClient.onConnect = () => {
@@ -63,18 +63,18 @@ export function SocketProvider({ children }) {
     };
   }, [isAuthenticated, loading]);
 
-  // Production-grade subscription function
   const subscribe = (destination, callback) => {
     if (!clientRef.current || !connected) return null;
 
-    // Avoid duplicate subscription
     if (subscriptionsRef.current.has(destination)) {
       console.warn(`Already subscribed to ${destination}`);
       return null;
     }
 
     const sub = clientRef.current.subscribe(destination, callback);
-    subscriptionsRef.current.set(destination, callback);
+
+    // ✅ store the SUBSCRIPTION
+    subscriptionsRef.current.set(destination, sub);
 
     return () => {
       sub.unsubscribe();
@@ -82,56 +82,70 @@ export function SocketProvider({ children }) {
     };
   };
 
+
   const unsubscribeAll = () => {
-    if (!clientRef.current) return;
+    subscriptionsRef.current.forEach((sub) => {
+      try {
+        sub.unsubscribe();
+      } catch { }
+    });
     subscriptionsRef.current.clear();
   };
 
- useEffect(() => {
-    // Only proceed if connected and we have a user
+
+  useEffect(() => {
     if (!connected || !user?.id || !clientRef.current) return;
 
     console.log("🛠️ Initializing Global Subscriptions");
 
-    // 1. GLOBAL RECEIPT LISTENER
-    // This updates the ticks (Sent -> Delivered -> Read) for messages YOU sent
-    const receiptSub = clientRef.current.subscribe(`/topic/receipt/${user.id}`, (msg) => {
-      const data = JSON.parse(msg.body);
-      setReceiptUpdate({
-        messageId: data.messageId,
-        status: data.status,
-        ts: Date.now() 
-      });
-    });
-
-    // 2. GLOBAL DELIVERED ACK GENERATOR
-    // This sends "DELIVERED" back to anyone who sends YOU a message, even if ChatWindow is closed.
-    const msgSub = clientRef.current.subscribe(`/user/queue/messages`, (msg) => {
-      const message = JSON.parse(msg.body);
-
-      // If I am the receiver, tell the server I received it (Double Gray Tick for sender)
-      if (Number(message.senderId) !== Number(user.id)) {
-        clientRef.current.publish({
-          destination: "/app/chat.ack",
-          body: JSON.stringify({
-            messageId: message.id,
-            status: "DELIVERED",
-          }),
+    // Receipt listener stays the same
+    const receiptSub = clientRef.current.subscribe(
+      `/topic/receipt/${user.id}`,
+      (msg) => {
+        const data = JSON.parse(msg.body);
+        setReceiptUpdate({
+          messageId: data.messageId,
+          roomId: data.roomId,
+          status: data.status,
+          allMessagesInRoom: data.allMessagesInRoom,
+          ts: Date.now(),
         });
       }
-    });
+    );
 
-    // CLEANUP: Unsubscribe when component unmounts or user changes
+    // CHANGED: Global message listener now ONLY sends DELIVERED
+    const msgSub = clientRef.current.subscribe(
+      `/user/queue/messages`,
+      (msg) => {
+        const message = JSON.parse(msg.body);
+
+        if (Number(message.senderId) !== Number(user.id)) {
+          clientRef.current.publish({
+            destination: "/app/chat.ack",
+            body: JSON.stringify({
+              messageId: message.id,
+              status: "DELIVERED", // Only mark as delivered here
+            }),
+          });
+        }
+      }
+    );
+
+    subscriptionsRef.current.set("global-receipt", receiptSub);
+    subscriptionsRef.current.set("global-messages", msgSub);
+
     return () => {
-      console.log("🧹 Cleaning up Global Subscriptions");
       receiptSub.unsubscribe();
       msgSub.unsubscribe();
+      subscriptionsRef.current.delete("global-receipt");
+      subscriptionsRef.current.delete("global-messages");
     };
   }, [connected, user?.id]);
 
-return (
-  <SocketContext.Provider value={{ client: clientRef.current, connected, subscribe, unsubscribeAll, receiptUpdate }}>
-    {children}
-  </SocketContext.Provider>
-);
+
+  return (
+    <SocketContext.Provider value={{ client: clientRef.current, connected, subscribe, unsubscribeAll, receiptUpdate }}>
+      {children}
+    </SocketContext.Provider>
+  );
 }

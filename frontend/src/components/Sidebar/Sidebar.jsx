@@ -33,6 +33,16 @@ export default function Sidebar() {
     }
   };
 
+  const onInputChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+
+    // If user clears the input, clear the backend results immediately
+    if (val.trim() === "") {
+      setSearchResults([]);
+    }
+  };
+
   const handleLogOut = async () => {
     try {
       const response = await axios.post(
@@ -107,7 +117,7 @@ export default function Sidebar() {
           type="text"
           placeholder="Search people or start a new chat..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={onInputChange}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
         />
       </div>

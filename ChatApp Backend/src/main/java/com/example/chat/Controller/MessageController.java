@@ -3,6 +3,7 @@ package com.example.chat.Controller;
 import com.example.chat.DTO.MessageDTO;
 import com.example.chat.DTO.MessageSendRequestDTO;
 import com.example.chat.Model.Message;
+import com.example.chat.Repository.MessageRepository;
 import com.example.chat.Service.MessageService;
 
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/messages")
@@ -19,6 +21,7 @@ import java.util.List;
 public class MessageController {
 
         private final MessageService messageService;
+        private final MessageRepository messageRepository;
 
         // ==========================
         // SEND MESSAGE
@@ -51,7 +54,7 @@ public class MessageController {
         // ==========================
         @GetMapping("/{roomId}")
         public ResponseEntity<?> getMessages(@PathVariable Long roomId) {
-                List<Message> messages = messageService.getMessages(roomId);
+                List<Message> messages = messageRepository.findByRoomIdWithReceipts(roomId);
 
                 List<MessageDTO> dtos = messages.stream().map(m -> MessageDTO.builder()
                                 .id(m.getId())
@@ -59,8 +62,8 @@ public class MessageController {
                                 .roomId(m.getRoomId())
                                 .content(m.getContent())
                                 .sentAt(m.getSentAt())
-                                .readByUserIds(List.copyOf(m.getReadByUserIds()))
-                                .deliveredToUserIds(List.copyOf(m.getDeliveredToUserIds()))
+                                .readByUserIds(Set.copyOf(m.getReadByUserIds()))
+                                .deliveredToUserIds(Set.copyOf(m.getDeliveredToUserIds()))
                                 .build()).toList();
 
                 return ResponseEntity.ok(dtos);

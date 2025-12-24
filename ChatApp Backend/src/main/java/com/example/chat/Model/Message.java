@@ -14,6 +14,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -79,12 +80,16 @@ public class Message {
      */
 
     @ElementCollection
-    @CollectionTable(name = "message_read", joinColumns = @JoinColumn(name = "message_id"))
+    @org.hibernate.annotations.BatchSize(size = 20)
+    @CollectionTable(name = "message_read", joinColumns = @JoinColumn(name = "message_id"), uniqueConstraints = @UniqueConstraint(columnNames = {
+            "message_id", "user_id" }))
     @Column(name = "user_id")
     Set<Long> readByUserIds;
 
     @ElementCollection
-    @CollectionTable(name = "message_delivered", joinColumns = @JoinColumn(name = "message_id"))
+    @org.hibernate.annotations.BatchSize(size = 20)
+    @CollectionTable(name = "message_delivered", joinColumns = @JoinColumn(name = "message_id"), uniqueConstraints = @UniqueConstraint(columnNames = {
+            "message_id", "user_id" }))
     @Column(name = "user_id")
     private Set<Long> deliveredToUserIds;
 

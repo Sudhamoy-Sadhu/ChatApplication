@@ -1,12 +1,16 @@
 package com.example.chat.Service;
 
 import com.example.chat.Model.Room;
+import com.example.chat.Model.RoomParticipant;
+import com.example.chat.Model.User;
 import com.example.chat.Presence.UserSessionRegistry;
+import com.example.chat.Repository.RoomParticipantRepository;
 import com.example.chat.Repository.RoomRepository;
+import com.example.chat.Repository.UserRepo;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -17,26 +21,86 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final UserSessionRegistry sessionRegistry;
+
+    private final RoomParticipantRepository participantRepository;
+    private final UserRepo userRepository;
     // =====================
     // PRIVATE CHAT ROOM
     // =====================
 
+    @Transactional
     public Room getOrCreatePrivateRoom(Long userA, Long userB) {
-
         String uniqueKey = createUniqueKey(userA, userB);
 
-        return roomRepository.findByUniqueKey(uniqueKey)
-                .orElseGet(() -> createPrivateRoom(uniqueKey, userA));
+        // 1. Get or Create the Room
+        Room room = roomRepository.findByUniqueKey(uniqueKey)
+                .orElseGet(() -> {
+                    Room newRoom = Room.builder()
+                            .type("PRIVATE")
+                            .uniqueKey(uniqueKey)
+                            .createdBy(userA)
+                            .build();
+                    return roomRepository.save(newRoom);
+                });
+
+        // 2. SELF-HEALING: Ensure both users are in the participants table
+        List<Long> existingParticipants = participantRepository.findUserIdsByRoomId(room.getId());
+        if (existingParticipants.size() < 2) {
+            syncParticipants(room, userA, userB, existingParticipants);
+        }
+
+        return room;
     }
 
-    private Room createPrivateRoom(String uniqueKey, Long createdBy) {
+    private void syncParticipants(Room room, Long userA, Long userB, List<Long> existing) {
+        List.of(userA, userB).forEach(userId -> {
+            if (!existing.contains(userId)) {
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+
+                RoomParticipant participant = RoomParticipant.builder()
+                        .room(room)
+                        .user(user)
+                        .joinedAt(Instant.now())
+                        .build();
+                participantRepository.save(participant);
+            }
+        });
+    }
+
+    @Transactional
+    private Room createPrivateRoom(String uniqueKey, Long createdBy, Long otherUser) {
+        // 1. Create and Save the Room
         Room room = Room.builder()
                 .type("PRIVATE")
                 .uniqueKey(uniqueKey)
                 .createdBy(createdBy)
                 .build();
+        Room savedRoom = roomRepository.save(room);
 
-        return roomRepository.save(room);
+        // 2. Link Participants (CRITICAL STEP)
+        // Assuming uniqueKey is "userA_userB", you need to add both
+        List.of(createdBy, otherUser).forEach(userId -> {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            RoomParticipant participant = RoomParticipant.builder()
+                    .room(savedRoom)
+                    .user(user)
+                    .joinedAt(Instant.now())
+                    .build();
+            participantRepository.save(participant);
+        });
+
+        return savedRoom;
+    }
+
+    public Long getRecipientId(Long roomId, Long senderId) {
+        List<Long> participants = getRoomParticipants(roomId);
+        return participants.stream()
+                .filter(id -> !id.equals(senderId))
+                .findFirst()
+                .orElse(null);
     }
 
     private String createUniqueKey(Long userA, Long userB) {
@@ -81,20 +145,7 @@ public class RoomService {
     }
 
     public List<Long> getRoomParticipants(Long roomId) {
-        Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new RuntimeException("Room not found"));
-
-        // PRIVATE ROOM
-        if (room.getType().equals("PRIVATE")) {
-            String[] parts = room.getUniqueKey().split("_");
-            Long userA = Long.parseLong(parts[0]);
-            Long userB = Long.parseLong(parts[1]);
-            return List.of(userA, userB);
-        }
-
-        // GROUP ROOM SUPPORT (optional)
-        // TODO: fetch group members if you support it
-        throw new RuntimeException("Group participants not implemented");
+        return participantRepository.findUserIdsByRoomId(roomId);
     }
 
     public boolean isUserOnline(Long userId) {

@@ -19,6 +19,7 @@ public class ContactDTO {
     private Instant lastSeen;
     private String lastMessage;
     private String lastMessageTime;
+    private Instant rawMessageTime;
     private int unreadCount;
     private Long roomId;       
     private String roomName;    

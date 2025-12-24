@@ -53,6 +53,7 @@ public class ContactService {
                             .roomName(room != null ? room.getName() : other.getUsername())
                             .lastMessage(room != null ? room.getLastMessage() : null)
                             .lastMessageTime(room != null ? TimeFormatter.format(room.getLastMessageTime()) : null)
+                            .rawMessageTime(room != null ? room.getLastMessageTime() : null)
                             .unreadCount(unreadCount)
                             .build();
                 })

@@ -50,6 +50,7 @@ export default function ChatWindow() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [emojiPickerVisible]);
 
+
   // Update header if status changes
   useEffect(() => {
     if (!selectedContact) return;
@@ -81,13 +82,18 @@ export default function ChatWindow() {
   };
 
 
-
-  // useEffect(() => {
-  //   if (!selectedContact) return;
-
-  //   // Clear previous messages
-  //   setMessages([]);
-  // }, [selectedContact]);
+  const markRoomAsRead = async () => {
+    if (!selectedContact?.roomId) return;
+    try {
+      await axios.post(
+        `http://localhost:8080/messages/${selectedContact.roomId}/mark-read`,
+        {},
+        { withCredentials: true }
+      );
+    } catch (err) {
+      console.error("Failed to mark room read", err);
+    }
+  };
 
   const lastReadMsgRef = useRef(null);
 
@@ -106,30 +112,32 @@ export default function ChatWindow() {
         );
 
         if (!isMounted) return;
-        const processedMessages = res.data.map(m => {
+        const processed = res.data.map(m => {
           const pending = pendingReceiptsRef.current.get(m.id);
           if (pending) pendingReceiptsRef.current.delete(m.id);
 
+          let status = "SENT";
+          if (m.readByUserIds && m.readByUserIds?.length > 0) {
+            status = "READ";
+          } else if (m.deliveredToUserIds && m.deliveredToUserIds?.length > 0) {
+            status = "DELIVERED";
+          }
+
           return {
             ...m,
-            // Use the helper to determine if it's ✔, ✔✔, or blue ✔✔
-            receiptStatus: pending ?? computeReceipt(m)
+            receiptStatus: Number(m.senderId) === Number(currentUserId) ? status : "READ"
           };
         });
 
-        setMessages(() => {
-          return res.data.map(m => {
-            const pending = pendingReceiptsRef.current.get(m.id);
+        setMessages(processed);
+        markRoomAsRead();
 
-            if (pending) {
-              pendingReceiptsRef.current.delete(m.id);
-            }
-
-            return {
-              ...m,
-              receiptStatus: pending ?? computeReceipt(m)
-            };
-          });
+        pendingReceiptsRef.current.forEach((status, messageId) => {
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === messageId ? { ...m, receiptStatus: status } : m
+            )
+          );
         });
 
 
@@ -151,21 +159,24 @@ export default function ChatWindow() {
         const message = JSON.parse(msg.body);
         const sentByMe = Number(message.senderId) === Number(currentUserId);
 
-        if (!sentByMe && document.hasFocus()) {
-          // ONLY send READ here. DELIVERED is now handled by SocketProvider globally.
-          client.publish({
-            destination: "/app/chat.ack",
-            body: JSON.stringify({
-              messageId: message.id,
-              status: "READ",
-            }),
-          });
+        if (!sentByMe) {
+          if (document.hasFocus()) {
+            client.publish({
+              destination: "/app/chat.ack",
+              body: JSON.stringify({
+                messageId: message.id,
+                status: "READ",
+              }),
+            });
+          }
         }
 
-
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === message.id)) return prev;
-          return [...prev, { ...message, receiptStatus: sentByMe ? "SENT" : undefined }];
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, {
+            ...message,
+            receiptStatus: sentByMe ? "SENT" : "READ"
+          }];
         });
 
         if (isAtBottomRef.current) {
@@ -174,6 +185,7 @@ export default function ChatWindow() {
       }
     );
 
+
     return () => {
       isMounted = false;
       sub.unsubscribe();
@@ -181,105 +193,17 @@ export default function ChatWindow() {
   }, [selectedContact?.roomId, client, connected, currentUserId]);
 
 
-
   useEffect(() => {
     if (!selectedContact) return;
-    if (messages.length === 0) return;
-    if (initialLoadRef.current) return;
 
-    const lastMsg = messages[messages.length - 1];
-
-    const isReceiver =
-      Number(lastMsg.senderId) !== Number(currentUserId) &&
-      Number(selectedContact.userId) === Number(lastMsg.senderId);
-
-    if (!isReceiver) return;
-    if (lastReadMsgRef.current === lastMsg.id) return;
-
-    lastReadMsgRef.current = lastMsg.id;
-
-    axios.post(
-      `http://localhost:8080/messages/${selectedContact.roomId}/mark-read`,
-      {},
-      { withCredentials: true }
-    ).catch(() => { });
-
-    if (isReceiver) {
-      setContacts(prev =>
-        prev.map(c =>
-          c.roomId === selectedContact.roomId
-            ? { ...c, unreadCount: 0 }
-            : c
-        )
-      );
-    }
-
-  }, [messages, selectedContact?.roomId]);
-
-
-
-
-  const RECEIPT_PRIORITY = { SENT: 1, DELIVERED: 2, READ: 3 };
-
-  // Inside component:
-  useEffect(() => {
-    if (!receiptUpdate) return;
-    const { messageId, status } = receiptUpdate;
-
-    setMessages(prev => {
-      const exists = prev.some(m => m.id === messageId);
-      if (!exists) {
-        pendingReceiptsRef.current.set(messageId, status);
-        return prev;
-      }
-      return prev.map(m => {
-        if (m.id !== messageId) return m;
-        if (RECEIPT_PRIORITY[status] <= RECEIPT_PRIORITY[m.receiptStatus]) return m;
-        return { ...m, receiptStatus: status };
-      });
-    });
-  }, [receiptUpdate]);
-
-
-  const computeReceipt = (m) => {
-    if (Number(m.senderId) !== Number(currentUserId)) return undefined;
-
-    // Check if anyone else in the room (other than me) has read it
-    const othersRead = m.readByUserIds?.some(id => Number(id) !== Number(currentUserId));
-    if (othersRead) return "READ";
-
-    // Check if anyone else has received it
-    const othersDelivered = m.deliveredToUserIds?.some(id => Number(id) !== Number(currentUserId));
-    if (othersDelivered) return "DELIVERED";
-
-    return "SENT";
-  };
-
-  useEffect(() => {
     const handleFocus = () => {
-      // When user returns to tab, find last message received from contact and mark read
-      if (messages.length > 0) {
-        const lastMsg = messages[messages.length - 1];
-        const isFromContact = Number(lastMsg.senderId) === Number(selectedContact?.userId);
-
-        if (isFromContact && client && connected) {
-          client.publish({
-            destination: "/app/chat.ack",
-            body: JSON.stringify({
-              messageId: lastMsg.id,
-              status: "READ",
-            }),
-          });
-
-          // Also call the REST endpoint to clear unread counts in DB
-          axios.post(`http://localhost:8080/messages/${selectedContact.roomId}/mark-read`, {}, { withCredentials: true });
-        }
-      }
+      markRoomAsRead();
     };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [messages, selectedContact, client, connected]);
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [selectedContact?.roomId]);
+
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -287,6 +211,41 @@ export default function ChatWindow() {
       sendMessage();
     }
   };
+
+
+  useEffect(() => {
+    if (!receiptUpdate || !selectedContact || !currentUserId) return;
+
+    const isCorrectRoom = Number(receiptUpdate.roomId) === Number(selectedContact.roomId);
+    if (!isCorrectRoom) return;
+
+    const { messageId, status, allMessagesInRoom } = receiptUpdate;
+    const RECEIPT_PRIORITY = { SENT: 1, DELIVERED: 2, READ: 3 };
+
+    setMessages((prevMessages) => {
+      if (allMessagesInRoom) {
+        return prevMessages.map((m) => {
+          const isSentByMe = Number(m.senderId) === Number(currentUserId);
+          // Only update my own messages to READ
+          if (isSentByMe && m.receiptStatus !== "READ") {
+            return { ...m, receiptStatus: "READ" };
+          }
+          return m;
+        });
+      }
+
+      return prevMessages.map((m) => {
+        if (m.id === messageId) {
+          const currentStatus = m.receiptStatus || "SENT";
+          if (RECEIPT_PRIORITY[status] > RECEIPT_PRIORITY[currentStatus]) {
+            return { ...m, receiptStatus: status };
+          }
+        }
+        return m;
+      });
+    });
+  }, [receiptUpdate, selectedContact?.roomId, currentUserId]);
+
 
   const sendingRef = useRef(false);
   const sendMessage = async (customText = null) => {

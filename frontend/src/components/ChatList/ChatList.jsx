@@ -22,6 +22,15 @@ export default function ChatList() {
   const userLoggedInId = user?.id;
 
 
+  const sortChatsByDate = (list) => {
+    return [...list].sort((a, b) => {
+      // We use rawMessageTime (the Instant) for logic
+      const t1 = a.rawMessageTime ? new Date(a.rawMessageTime).getTime() : 0;
+      const t2 = b.rawMessageTime ? new Date(b.rawMessageTime).getTime() : 0;
+      return t2 - t1;
+    });
+  };
+
   // ░░ FETCH CONTACTS ░░
   useEffect(() => {
     const fetchContacts = async () => {
@@ -32,16 +41,12 @@ export default function ChatList() {
           { withCredentials: true }
         );
 
-        const sorted = response.data.map(c => ({
+        const processed = response.data.map(c => ({
           ...c,
           unreadCount: c.unreadCount ?? 0
-        })).sort((a, b) => {
-          const t1 = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
-          const t2 = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
-          return t2 - t1;
-        });
+        }));
 
-        setContacts(sorted);
+        setContacts(sortChatsByDate(processed));
 
       } catch (err) {
         setError("Unable to load contacts");
@@ -79,89 +84,70 @@ export default function ChatList() {
 
         if (data.type === "STATUS_CHANGE") {
           const { userId, status } = data;
-
           setContacts(prev =>
-            prev.map(c =>
-              c.userId === userId ? { ...c, status } : c
-            )
+            prev.map(c => c.userId === userId ? { ...c, status } : c)
           );
-
           setSelectedContact(prev =>
-            prev?.userId === userId
-              ? { ...prev, status }
-              : prev
+            prev?.userId === userId ? { ...prev, status } : prev
           );
         }
 
         if (data.type === "LAST_MESSAGE") {
-          const { roomId, msg: lastMessage, time } = data;
-
+          const { roomId, msg: lastMessage, time, formattedTime } = data;
           setContacts(prev => {
             const updated = prev.map(c =>
               c.roomId === roomId
-                ? { ...c, lastMessage, lastMessageTime: time }
+                ? { ...c, lastMessage, lastMessageTime: formattedTime, rawMessageTime: time }
                 : c
             );
-
-            return updated.sort((a, b) => {
-              const t1 = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
-              const t2 = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
-              return t2 - t1;
-            });
+            return sortChatsByDate(updated);
           });
-
-
           setSelectedContact(prev =>
             prev?.roomId === roomId
-              ? { ...prev, lastMessage, lastMessageTime: time }
+              ? { ...prev, lastMessage, lastMessageTime: formattedTime }
               : prev
           );
         }
 
         if (data.type === "READ_RESET") {
           const { roomId } = data;
-
           setContacts(prev =>
-            prev.map(c =>
-              c.roomId === roomId
-                ? { ...c, unreadCount: 0 }
-                : c
-            )
+            prev.map(c => c.roomId === roomId ? { ...c, unreadCount: 0 } : c)
+          );
+          // Sync active room state
+          setSelectedContact(prev =>
+            prev?.roomId === roomId ? { ...prev, unreadCount: 0 } : prev
           );
         }
       }
-    );
-
+    ); // <--- Closing the first subscription callback properly
 
     // ===============================
     // Unread count subscription
     // ===============================
     unreadSubRef.current = client.subscribe(
       "/user/queue/unread",
-      async (msg) => {
-        const { roomId, unreadCount } = JSON.parse(msg.body);
+      (msg) => {
+        const data = JSON.parse(msg.body);
+        const { roomId, unreadCount, count } = data;
+        const finalCount = unreadCount !== undefined ? unreadCount : count;
 
-        // 🔑 If this room is currently open, ignore unread
-        if (selectedRoomRef.current === roomId) return;
-
-        // Otherwise update unread count
         setContacts(prev =>
-          prev.map(c =>
-            c.roomId === roomId
-              ? { ...c, unreadCount }
-              : c
-          )
+          prev.map(c => {
+            if (c.roomId === roomId) {
+              return { ...c, unreadCount: finalCount };
+            }
+            return c;
+          })
         );
       }
     );
 
 
-    // cleanup on unmount / reconnect
     return () => {
       chatlistSubRef.current?.unsubscribe();
       unreadSubRef.current?.unsubscribe();
     };
-
   }, [client, connected, userLoggedInId]);
 
 
@@ -180,10 +166,35 @@ export default function ChatList() {
     }
   };
 
-  if (loading) return <div className="chat-list-loading">Loading...</div>;
-  if (error) return <div className="chat-list-error">{error}</div>;
 
-  const displayList = searchQuery ? searchResults : contacts;
+
+
+  let displayList = [];
+
+  if (!searchQuery) {
+    // Case 1: No Search -> Show all contacts normally
+    displayList = contacts;
+  } else {
+    // Case 2: User is Searching
+
+    // A. Filter Local Contacts (Instant)
+    const localMatches = contacts.filter((c) => {
+      const name = c.roomName || c.username || "";
+      return name.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+
+    // B. Filter Backend Results (Remove duplicates if they are already in contacts)
+    // We use email as a unique key to check if they are already in localMatches
+    const localEmails = new Set(localMatches.map(c => c.email));
+
+    const uniqueBackendResults = searchResults.filter(
+      (result) => !localEmails.has(result.email)
+    );
+
+    // C. Combine them
+    // Local matches first (friends), then global results (strangers)
+    displayList = [...localMatches, ...uniqueBackendResults];
+  }
 
   if (!displayList || displayList.length === 0) {
     return (
@@ -199,6 +210,8 @@ export default function ChatList() {
       </div>
     );
   }
+  if (loading) return <div className="chat-list-loading">Loading...</div>;
+  if (error) return <div className="chat-list-error">{error}</div>;
 
   return (
     <div className="chat-list">
@@ -207,19 +220,20 @@ export default function ChatList() {
         const username = user.username;
         const email = user.email;
         const profilePicture = user.profilePicture || "/assets/default-logo.png";
-        const lastMessage = user.lastMessage || "Start your conversation!";
-        const lastMessageTime = user.lastMessageTime || "";
+        const isContact = contacts.some((c) => c.email === user.email);
+        const lastMessage = isContact ? (user.lastMessage || "Start your conversation!") : "Not in Contacts";
+        const lastMessageTime = isContact ? (user.lastMessageTime || "") : "";
         const status = user.status ?? "INACTIVE";
         const roomId = user.roomId;
 
-        const isContact =
-          !isNotFound &&
-          contacts.some((c) => c.email === user.email);
-
+        // const isContact =
+        //   !isNotFound &&
+        //   contacts.some((c) => c.email === user.email);
+        const isSelected = selectedContact?.roomId === user.roomId;
         return (
           <div
-            key={i}
-            className="chat-item"
+            key={user.roomId || user.email}
+            className={`chat-item ${isSelected ? "active" : ""}`}
             onClick={() => {
               if (!roomId || isNotFound || !isContact) return;
 
@@ -279,7 +293,7 @@ export default function ChatList() {
                   >
                     Invite
                   </button>
-                ) : !isContact ? (
+                ) : searchQuery && !isContact && !isNotFound && (
                   <button
                     className={
                       sentRequests.has(user.id)
@@ -291,7 +305,7 @@ export default function ChatList() {
                   >
                     {sentRequests.has(user.id) ? "Pending" : "Connect"}
                   </button>
-                ) : null)}
+                ))}
             </div>
           </div>
         );
