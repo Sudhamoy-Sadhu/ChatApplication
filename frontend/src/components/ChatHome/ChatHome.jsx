@@ -9,6 +9,7 @@ import { ToastContainer } from "react-toastify";
 import { usePageManager } from "../ContextAPI/PageManagerContext.jsx";
 import ConnectionRequest from "../ConnectionRequest/ConnectionRequest.jsx";
 import Profile from "../Profile/Profile.jsx"
+import ImageModal from "../Modals/ImageModal/ImageModal.jsx";
 
 
 export default function ChatHome() {
@@ -20,6 +21,7 @@ export default function ChatHome() {
       {inviteModalOpen && (
         <InviteModal email={inviteEmail} onClose={closeInviteModal} />
       )}
+      <ImageModal />
       <div className="Chat-home-main">
         <div className="sidebar">
           <Sidebar />

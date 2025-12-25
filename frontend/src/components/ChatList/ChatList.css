@@ -7,7 +7,8 @@
     background: #09395D;
     background-image: linear-gradient(#09395D, #142532);
     overflow-y: scroll;
-    padding-top: 3%;
+    padding: 3%;
+    gap: 3px;
     will-change: transform;
     transform: translateZ(0);
     backface-visibility: hidden;
@@ -28,7 +29,8 @@
     width: 100%;
     color: white;
     /* background: red; */
-    padding: 3% 5%;
+    padding: 3% 2%;
+    border-radius: 2px;
     gap: 5%;
     cursor: pointer;
 
@@ -45,6 +47,7 @@
 
 .last-message {
     font-size: smaller;
+    color: rgb(205, 204, 204);
     width: 80%;
     white-space: nowrap;
     overflow: hidden;
@@ -97,7 +100,20 @@
     justify-content: center;
     align-items: flex-start;
     flex-direction: column;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.details-name h4{
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex-direction: column;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .chat-time {

@@ -4,6 +4,7 @@ import { AuthContext } from "../ContextAPI/AuthContext";
 import { GrEdit, GrCheckmark, GrClose } from "react-icons/gr";
 import axios from "axios";
 import { useToast } from "../ContextAPI/ToastContext";
+import { ModalContext } from "../ContextAPI/ModalContext";
 
 export default function Profile() {
     const { user, setUser } = useContext(AuthContext);
@@ -17,7 +18,7 @@ export default function Profile() {
     const [newName, setNewName] = useState(user.username);
     const [isEditingEmail, setIsEditingEmail] = useState(false);
     const [newEmail, setNewEmail] = useState(user.email);
-
+    const { openImageModal } = useContext(ModalContext);
     const { showToast } = useToast();
     const fileInputRef = useRef(null);
 
@@ -72,7 +73,9 @@ export default function Profile() {
                 <div className="profile-header">
                     {/* Profile Picture Section */}
                     <div className="profile-img-div">
-                        <img src={user.profilePicture || "/assets/default-logo.png"} alt="DP" />
+                        <img src={user.profilePicture || "/assets/default-logo.png"} alt="DP" onClick={(e) => {
+                            e.stopPropagation(); openImageModal(user.profilePicture, user.username);
+                        }} />
                         <button onClick={handleEditPicClick}><GrEdit /></button>
                         <input
                             type="file"

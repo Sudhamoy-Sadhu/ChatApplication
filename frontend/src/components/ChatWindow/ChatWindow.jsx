@@ -10,9 +10,10 @@ import { GoDotFill } from "react-icons/go";
 import { ChatContext } from "../ContextAPI/ChatContext";
 import { MdEmojiEmotions } from "react-icons/md";
 import 'emoji-picker-element';
-import { toast, ToastContainer } from "react-toastify";
 import { AuthContext } from "../ContextAPI/AuthContext";
 import { SocketContext } from "../ContextAPI/SocketContext";
+import { useToast } from "../ContextAPI/ToastContext";
+import { ModalContext } from "../ContextAPI/ModalContext";
 
 export default function ChatWindow() {
   const { contacts, setContacts, selectedContact, setSelectedContact } = useContext(ChatContext);
@@ -28,6 +29,8 @@ export default function ChatWindow() {
   const initialLoadRef = useRef(true);
   const pendingReceiptsRef = useRef(new Map());
   const { receiptUpdate } = useContext(SocketContext);
+  const { showToast } = useToast;
+  const { openImageModal } = useContext(ModalContext);
 
 
 
@@ -147,7 +150,7 @@ export default function ChatWindow() {
         });
 
       } catch {
-        toast.error("Failed to load messages");
+        showToast.error("Failed to load messages");
       }
     };
 
@@ -272,7 +275,7 @@ export default function ChatWindow() {
       setNewMessage(""); // Clear input
     } catch (err) {
       console.error("Send message failed:", err);
-      toast.error("Failed to send message");
+      showToast.error("Failed to send message");
     } finally {
       sendingRef.current = false;
     }
@@ -297,7 +300,9 @@ export default function ChatWindow() {
 
       <div className="chat-header">
         <div className="sender-info">
-          <div className="avatar">
+          <div className="avatar" onClick={(e) => {
+              e.stopPropagation(); openImageModal(selectedContact.profilePicture, selectedContact.username);
+            }}>
             <img src={selectedContact.profilePicture || "/assets/default-logo.png"} alt=""></img>
           </div>
 
@@ -408,8 +413,6 @@ export default function ChatWindow() {
 
         <button className="send" onClick={sendMessage}>➤</button>
       </div>
-
-      <ToastContainer position="top-right" autoClose={2000} theme="light" />
     </div>
   );
 }

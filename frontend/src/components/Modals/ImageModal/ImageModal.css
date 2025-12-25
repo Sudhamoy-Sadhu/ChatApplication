@@ -1,0 +1,90 @@
+/* ===== Fullscreen overlay ===== */
+.image-modal-main {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+/* ===== Modal frame ===== */
+.image-modal-body {
+    position: relative;
+    width: 30vw;
+    height: 50vh;
+    max-width: 900px;
+    max-height: 700px;
+    background: rgba(20, 20, 20, 0.95);
+    border-radius: 12px;
+    box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    border: 1.5px solid white;
+}
+
+/* ===== Top bar (username + close) ===== */
+.image-modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #09395D;
+    /* border: 1px solid white; */
+    border-radius: 12px;
+}
+
+.image-modal-close h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #cfcfcf;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.image-modal-close button {
+    background: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 22px;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.image-modal-close button:hover {
+    color: #000;
+    background: rgb(255, 255, 255);
+    transform: scale(1.1);
+}
+
+/* ===== Image wrapper ===== */
+.image-modal-body img {
+    margin: auto;
+}
+
+/* ===== Image ===== */
+.preview-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: zoom-in;
+    transition: transform 0.35s ease;
+    user-select: none;
+    will-change: transform;
+}
+
+/* ===== Zoomed ===== */
+.preview-image.zoomed {
+    transform: scale(2.1);
+    cursor: zoom-out;
+}

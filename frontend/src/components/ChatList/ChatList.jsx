@@ -18,6 +18,7 @@ export default function ChatList() {
   const [sentRequests, setSentRequests] = useState(new Set());
   const { user } = useContext(AuthContext);
   const { goToPage } = usePageManager();
+  const { openImageModal } = useContext(ModalContext);
 
   const userLoggedInId = user?.id;
 
@@ -258,7 +259,9 @@ export default function ChatList() {
               }
             }}
           >
-            <div className="avatar">
+            <div className="avatar" onClick={(e) => {
+              e.stopPropagation(); openImageModal(profilePicture, username);
+            }}>
               <img src={profilePicture} alt="profile-dp" />
             </div>
 

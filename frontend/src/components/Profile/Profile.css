@@ -35,6 +35,7 @@
     height: 120px;
     border-radius: 50%;
     object-fit: cover;
+    cursor: pointer;
     aspect-ratio: 1/1;
     /* Gold border */
     border: 3px solid #cda45e;

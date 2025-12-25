@@ -5,8 +5,9 @@ import { FaSearch } from "react-icons/fa";
 import axios from "axios";
 import { ChatContext } from "../ContextAPI/ChatContext";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
 import { usePageManager } from "../ContextAPI/PageManagerContext";
+import { useToast } from "../ContextAPI/ToastContext";
+
 
 export default function Sidebar() {
   const { searchQuery, setSearchQuery, setSearchResults } =
@@ -15,6 +16,7 @@ export default function Sidebar() {
   const menuRef = useRef(null);
   const { goToPage } = usePageManager();
   const { goBack } = usePageManager();
+  const { showToast } = useToast;
 
   const navigate = useNavigate();
 
@@ -53,7 +55,7 @@ export default function Sidebar() {
         }
       );
       if (response.status === 200) {
-        toast.success("Logged out successfully!", { autoClose: 2000 });
+        showToast.success("Logged out successfully!");
         setSearchResults([]);
         setSearchQuery("");
         goBack();
@@ -73,7 +75,7 @@ export default function Sidebar() {
         }, 2000);
       }
     } catch (err) {
-      toast.error("Logout Failed");
+      showToast.error("Logout Failed");
       console.error("Logout Failed", err);
       setSearchResults([]);
     }

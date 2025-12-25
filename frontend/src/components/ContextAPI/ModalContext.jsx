@@ -5,6 +5,9 @@ export const ModalContext = createContext();
 export default function ModalProvider({ children }) {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [imageSrc, setImageSrc] = useState(null);
+  const [imgUsername, setImgUsername] = useState("");
 
   const openInviteModal = (email = "") => {
     setInviteEmail(email);
@@ -16,6 +19,18 @@ export default function ModalProvider({ children }) {
     setInviteEmail("");
   };
 
+   const openImageModal = (src, name) => {
+    setImageSrc(src);
+    setImgUsername(name);
+    setImageModalOpen(true);
+  };
+
+  const closeImageModal = () => {
+    setImageModalOpen(false);
+    setImgUsername("");
+    setImageSrc(null);
+  };
+
   return (
     <ModalContext.Provider
       value={{
@@ -23,6 +38,11 @@ export default function ModalProvider({ children }) {
         inviteEmail,
         openInviteModal,
         closeInviteModal,
+        imageSrc,
+        imgUsername,
+        imageModalOpen,
+        openImageModal,
+        closeImageModal
       }}
     >
       {children}
