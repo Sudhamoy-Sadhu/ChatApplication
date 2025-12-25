@@ -16,7 +16,7 @@ export default function Sidebar() {
   const menuRef = useRef(null);
   const { goToPage } = usePageManager();
   const { goBack } = usePageManager();
-  const { showToast } = useToast;
+  const { showToast } = useToast();
 
   const navigate = useNavigate();
 
@@ -72,7 +72,7 @@ export default function Sidebar() {
         });
         setTimeout(() => {
           navigate("/login");
-        }, 2000);
+        }, 1500);
       }
     } catch (err) {
       showToast.error("Logout Failed");

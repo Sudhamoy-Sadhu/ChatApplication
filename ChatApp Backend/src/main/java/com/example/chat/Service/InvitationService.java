@@ -25,8 +25,7 @@ public class InvitationService {
 
     public SimpleMailMessage createInvitationEmail(String toEmail, String name, Long id) {
 
-        Optional<Invitation> existing = invitationRepo
-                .findBySenderId(id);
+        Optional<Invitation> existing = invitationRepo.findBySenderIdAndReceiverEmail(id, toEmail);
 
         if (existing.isPresent()) {
             throw new RuntimeException("You have already invited this email");

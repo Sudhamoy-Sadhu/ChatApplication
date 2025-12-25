@@ -11,4 +11,6 @@ public interface InvitationRepo extends JpaRepository<Invitation, Long> {
 
     Optional<Invitation> findBySenderId(Long senderId);
 
+    Optional<Invitation> findBySenderIdAndReceiverEmail(Long senderId, String receiverEmail);
+
 }

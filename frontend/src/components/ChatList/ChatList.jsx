@@ -205,7 +205,7 @@ export default function ChatList() {
         </h3>
         <p>
           {searchQuery
-            ? "Try different username or email."
+            ? "Try different username or email and hit enter to search."
             : "Search by email to find people or invite new users."}
         </p>
       </div>
