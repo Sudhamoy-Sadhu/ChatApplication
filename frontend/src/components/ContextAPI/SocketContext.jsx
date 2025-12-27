@@ -2,6 +2,7 @@ import { createContext, useEffect, useState, useRef, useContext } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { AuthContext } from "./AuthContext";
+import axios from "axios";
 
 export const SocketContext = createContext(null);
 
@@ -147,6 +148,14 @@ export function SocketProvider({ children }) {
       subscriptionsRef.current.delete("global-messages");
     };
   }, [connected, user?.id]);
+
+  useEffect(() => {
+    axios.get("http://localhost:8080/requests/unread-count", {
+      withCredentials: true
+    }).then(res => {
+      setRequestCount(res.data);
+    });
+  }, []);
 
 
   return (

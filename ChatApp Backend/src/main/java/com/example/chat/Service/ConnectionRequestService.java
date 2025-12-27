@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,8 @@ public class ConnectionRequestService {
     private ContactRepo contactRepo;
     @Autowired
     private RoomService roomService;
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     public void sendRequest(Long requesterId, Long targetId) {
 
@@ -52,8 +55,21 @@ public class ConnectionRequestService {
         request.setRequesterId(requester);
         request.setTargetId(target);
         request.setStatus(ConnectionRequest.Status.PENDING);
+        request.setSeen(false);
+        request.setCreatedAt(Instant.now());
 
         connectionRequestRepo.save(request);
+
+        messagingTemplate.convertAndSend(
+                "/topic/chatlist/" + target.getId(),
+                Map.of(
+                        "type", "NEW_CONNECTION_REQUEST",
+                        "requestId", request.getId(),
+                        "fromUser", Map.of(
+                                "id", requester.getId(),
+                                "username", requester.getUsername(),
+                                "email", requester.getEmail(),
+                                "profilePicture", ImageUtils.getProfilePicture(requester.getProfilePicture()))));
     }
 
     public ConnectionRequest.Status getRequestStatus(Long requesterId, Long targetId) {
@@ -132,16 +148,61 @@ public class ConnectionRequestService {
                 .build();
 
         contactRepo.save(c2);
+
+        notifyContactAdded(requester, target, room);
+        notifyContactAdded(target, requester, room);
+
+        messagingTemplate.convertAndSend(
+                "/topic/chatlist/" + target.getId(),
+                Map.of("type", "REQUEST_COUNT_DECREMENT", "by", 1));
+
     }
 
+    private void notifyContactAdded(User owner, User newContact, Room room) {
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", "CONTACT_ADDED");
+
+        payload.put("contact", Map.of(
+                "userId", newContact.getId(),
+                "username", newContact.getUsername(),
+                "email", newContact.getEmail(),
+                "profilePicture", ImageUtils.getProfilePicture(newContact.getProfilePicture()),
+                "roomId", room.getId(),
+                "roomName", newContact.getUsername(),
+                "status", newContact.getStatus().name(),
+                "lastMessage", "Start your conversation!",
+                "lastMessageTime", "",
+                "unreadCount", 0));
+
+        messagingTemplate.convertAndSend(
+                "/topic/chatlist/" + owner.getId(),
+                payload);
+    }
+
+    @Transactional
     public void rejectConnectionRequest(Long requestId) {
+
         ConnectionRequest request = connectionRequestRepo.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found"));
 
-        request.setStatus(ConnectionRequest.Status.REJECTED);
-        request.setUpdatedAt(Instant.now());
+        User requester = request.getRequesterId();
+        User target = request.getTargetId();
 
+        request.setStatus(ConnectionRequest.Status.REJECTED);
+        request.setSeen(true);
+        request.setUpdatedAt(Instant.now());
         connectionRequestRepo.save(request);
+
+        messagingTemplate.convertAndSend(
+                "/topic/chatlist/" + requester.getId(),
+                Map.of(
+                        "type", "REQUEST_REJECTED",
+                        "requestId", requestId));
+
+        messagingTemplate.convertAndSend(
+                "/topic/chatlist/" + target.getId(),
+                Map.of("type", "REQUEST_COUNT_DECREMENT", "by", 1));
     }
 
     public void cancelConnectionRequest(Long requestId, Long loggedInUserId) {
@@ -153,7 +214,30 @@ public class ConnectionRequestService {
             throw new RuntimeException("You are not allowed to cancel this request");
         }
 
+        if (!request.isSeen()) {
+            messagingTemplate.convertAndSend(
+                    "/topic/chatlist/" + request.getTargetId().getId(),
+                    Map.of("type", "REQUEST_COUNT_DECREMENT", "by", 1));
+        }
+
         connectionRequestRepo.delete(request);
+    }
+
+    public long getUnreadRequestCount(Long userId) {
+        return connectionRequestRepo.countUnreadRequests(userId);
+    }
+
+    @Transactional
+    public void markRequestsAsSeen(Long userId) {
+
+        List<ConnectionRequest> unread = connectionRequestRepo.findUnreadRequests(userId);
+
+        unread.forEach(req -> {
+            req.setSeen(true);
+            req.setUpdatedAt(Instant.now());
+        });
+
+        connectionRequestRepo.saveAll(unread);
     }
 
 }

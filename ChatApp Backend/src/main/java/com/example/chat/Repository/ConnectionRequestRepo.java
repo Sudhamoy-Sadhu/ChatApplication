@@ -21,4 +21,22 @@ public interface ConnectionRequestRepo extends JpaRepository<ConnectionRequest, 
 
     @Query("SELECT cr FROM ConnectionRequest cr WHERE cr.requesterId.id = :id OR cr.targetId.id = :id")
     List<ConnectionRequest> findAllRelatedToUser(Long id);
+
+    @Query("""
+            SELECT COUNT(cr)
+            FROM ConnectionRequest cr
+            WHERE cr.targetId.id = :userId
+            AND cr.status = 'PENDING'
+            AND cr.seen = false
+            """)
+    long countUnreadRequests(Long userId);
+
+    @Query("""
+            SELECT cr FROM ConnectionRequest cr
+            WHERE cr.targetId.id = :userId
+            AND cr.status = 'PENDING'
+            AND cr.seen = false
+            """)
+    List<ConnectionRequest> findUnreadRequests(Long userId);
+
 }

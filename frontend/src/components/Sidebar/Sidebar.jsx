@@ -7,6 +7,8 @@ import { ChatContext } from "../ContextAPI/ChatContext";
 import { useNavigate } from "react-router-dom";
 import { usePageManager } from "../ContextAPI/PageManagerContext";
 import { useToast } from "../ContextAPI/ToastContext";
+import { RequestCountContext } from "../ContextAPI/RequestCountContext";
+
 
 
 export default function Sidebar() {
@@ -17,6 +19,8 @@ export default function Sidebar() {
   const { goToPage } = usePageManager();
   const { goBack } = usePageManager();
   const { showToast } = useToast();
+  const { requestCount } = useContext(RequestCountContext);
+
 
   const navigate = useNavigate();
 
@@ -104,7 +108,9 @@ export default function Sidebar() {
         {showMenu && (
           <div className="settings-menu">
             <button className="menu-item" onClick={() => goToPage("profile")}>Profile</button>
-            <button className="menu-item" onClick={() => goToPage("request")}>Connection Requests</button>
+            <button className="menu-item" onClick={() => goToPage("request")}>Connection Requests {requestCount > 0 && (
+              <span className="conn-badge">{requestCount}</span>
+            )}</button>
             <button className="menu-item" onClick={handleLogOut}>
               Logout
             </button>

@@ -6,6 +6,9 @@ import { ModalContext } from "../ContextAPI/ModalContext";
 import { AuthContext } from "../ContextAPI/AuthContext";
 import { usePageManager } from "../ContextAPI/PageManagerContext";
 import { SocketContext } from "../ContextAPI/SocketContext";
+import { useToast } from "../ContextAPI/ToastContext";
+import { RequestCountContext } from "../ContextAPI/RequestCountContext";
+
 
 export default function ChatList() {
   const { contacts, setContacts, selectedContact, setSelectedContact, searchResults, searchQuery } =
@@ -19,7 +22,8 @@ export default function ChatList() {
   const { user } = useContext(AuthContext);
   const { goToPage } = usePageManager();
   const { openImageModal } = useContext(ModalContext);
-
+  const { setRequestCount } = useContext(RequestCountContext);
+  const { showToast } = useToast();
   const userLoggedInId = user?.id;
 
 
@@ -120,6 +124,39 @@ export default function ChatList() {
             prev?.roomId === roomId ? { ...prev, unreadCount: 0 } : prev
           );
         }
+
+        if (data.type === "CONTACT_ADDED") {
+          const newContact = data.contact;
+
+          setContacts(prev => {
+            if (prev.some(c => c.userId === newContact.userId)) return prev;
+
+            return [newContact, ...prev];
+          });
+        }
+
+        if (data.type === "REQUEST_REJECTED") {
+          setSentRequests(prev => {
+            const copy = new Set(prev);
+            copy.delete(data.requestId);
+            return copy;
+          });
+        }
+
+        if (data.type === "NEW_CONNECTION_REQUEST") {
+          const fromUser = data.fromUser;
+
+          showToast.info(
+            `${fromUser.username} sent you a connection request`
+          );
+
+          setRequestCount(prev => prev + 1);
+        }
+
+        if (data.type === "REQUEST_COUNT_DECREMENT") {
+          setRequestCount(prev => Math.max(prev - data.by, 0));
+        }
+
       }
     ); // <--- Closing the first subscription callback properly
 
@@ -160,9 +197,9 @@ export default function ChatList() {
         { withCredentials: true }
       );
       setSentRequests((prev) => new Set(prev).add(targetId));
-      alert("Connection request sent!");
+      showToast.success("Connection request sent!");
     } catch (err) {
-      alert(err.response.data);
+      showToast.error(err.response.data);
       console.error(err);
     }
   };

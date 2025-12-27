@@ -2,9 +2,11 @@ import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
 import "./ConnectionRequest.css";
 import { AuthContext } from "../ContextAPI/AuthContext";
+import { RequestCountContext } from "../ContextAPI/RequestCountContext";
 
 export default function ConnectionRequests() {
     const { user } = useContext(AuthContext);
+    const { setRequestCount } = useContext(RequestCountContext);
     const [requests, setRequests] = useState([]);
 
     // Fetch connection requests
@@ -59,6 +61,13 @@ export default function ConnectionRequests() {
         );
     }
 
+    useEffect(() => {
+        axios.post("http://localhost:8080/requests/mark-seen", {}, {
+            withCredentials: true
+        });
+
+        setRequestCount(0);
+    }, []);
 
     return (
         <div className="cr-wrapper">

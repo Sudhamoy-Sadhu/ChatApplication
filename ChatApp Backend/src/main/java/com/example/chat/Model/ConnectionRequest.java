@@ -49,13 +49,15 @@ public class ConnectionRequest {
 
     private Instant updatedAt = Instant.now();
 
+    @Column(nullable = false)
+    private boolean seen = false;
+
     @PreUpdate
     public void onUpdate() {
         this.updatedAt = Instant.now();
     }
-    
+
     public enum Status {
-    NONE, PENDING, ACCEPTED, REJECTED, CANCELED
+        NONE, PENDING, ACCEPTED, REJECTED, CANCELED
     }
 }
-

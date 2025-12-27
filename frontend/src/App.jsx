@@ -8,6 +8,7 @@ import ForgotPassword from "./components/ForgotPassword/ForgotPassword";
 import ModalProvider from "./components/ContextAPI/ModalContext";
 import PageManagerProvider from "./components/ContextAPI/PageManagerContext";
 import { SocketProvider } from "./components/ContextAPI/SocketContext";
+import { RequestCountProvider } from "./components/ContextAPI/RequestCountContext";
 
 
 export default function App() {
@@ -16,13 +17,15 @@ export default function App() {
     <SocketProvider>
       <ModalProvider>
         <PageManagerProvider>
-          <Router>
-            <Routes>
-              <Route path="/login" element={<LoginandSignUp />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/" element={<ProtectedRoute><ChatHome /></ProtectedRoute>} />
-            </Routes>
-          </Router>
+          <RequestCountProvider>
+            <Router>
+              <Routes>
+                <Route path="/login" element={<LoginandSignUp />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/" element={<ProtectedRoute><ChatHome /></ProtectedRoute>} />
+              </Routes>
+            </Router>
+          </RequestCountProvider>
         </PageManagerProvider>
       </ModalProvider>
     </SocketProvider>

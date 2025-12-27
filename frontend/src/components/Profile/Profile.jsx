@@ -36,11 +36,11 @@ export default function Profile() {
         formData.append('file', file);
 
         try {
-            const response = await axios.patch(`http://localhost:8080/users/profile-picture`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
+            const response = await axios.patch("http://localhost:8080/users/profile-picture", formData, {
                 withCredentials: true,
-                responseType: 'arraybuffer'
-            });
+                responseType: "arraybuffer"
+            }
+            );
 
             // 1. Convert the ArrayBuffer to Base64
             const base64Image = btoa(
