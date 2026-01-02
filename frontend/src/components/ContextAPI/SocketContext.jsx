@@ -3,6 +3,7 @@ import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { AuthContext } from "./AuthContext";
 import axios from "axios";
+import { RequestCountContext } from "./RequestCountContext";
 
 export const SocketContext = createContext(null);
 
@@ -12,7 +13,9 @@ export function SocketProvider({ children }) {
   const clientRef = useRef(null);
   const subscriptionsRef = useRef(new Map());
   const [receiptUpdate, setReceiptUpdate] = useState(null);
+  const { setRequestCount } = useContext(RequestCountContext);
 
+  // 1. WebSocket Connection Logic
   useEffect(() => {
     if (loading) return;
 
@@ -25,7 +28,7 @@ export function SocketProvider({ children }) {
       return;
     }
 
-    if (clientRef.current) return; // already connected
+    if (clientRef.current) return;
 
     console.log("🔐 Connecting WebSocket...");
 
@@ -38,8 +41,6 @@ export function SocketProvider({ children }) {
       },
     });
 
-
-    // Connection handlers
     stompClient.onConnect = () => {
       console.log("✅ WebSocket connected");
       setConnected(true);
@@ -51,10 +52,8 @@ export function SocketProvider({ children }) {
     };
 
     stompClient.onStompError = (frame) => {
-      console.error("❌ STOMP broker error:", frame.headers["message"]);
-
+      console.error("❌ STOMP error:", frame.headers["message"]);
       if (frame.headers["message"]?.includes("Reject") || frame.headers["message"]?.includes("Auth")) {
-        console.log("🛑 Auth failure detected. Deactivating auto-reconnect.");
         stompClient.deactivate();
         setConnected(false);
       }
@@ -70,42 +69,45 @@ export function SocketProvider({ children }) {
     };
   }, [isAuthenticated, loading]);
 
-  const subscribe = (destination, callback) => {
-    if (!clientRef.current || !connected) return null;
-
-    if (subscriptionsRef.current.has(destination)) {
-      console.warn(`Already subscribed to ${destination}`);
-      return null;
-    }
-
-    const sub = clientRef.current.subscribe(destination, callback);
-
-    // ✅ store the SUBSCRIPTION
-    subscriptionsRef.current.set(destination, sub);
-
-    return () => {
-      sub.unsubscribe();
-      subscriptionsRef.current.delete(destination);
-    };
-  };
-
-
-  const unsubscribeAll = () => {
-    subscriptionsRef.current.forEach((sub) => {
-      try {
-        sub.unsubscribe();
-      } catch { }
-    });
-    subscriptionsRef.current.clear();
-  };
-
-
+  // 2. Global Subscriptions (Delivery Acknowledgments & Receipts)
   useEffect(() => {
     if (!connected || !user?.id || !clientRef.current) return;
 
     console.log("🛠️ Initializing Global Subscriptions");
 
-    // Receipt listener stays the same
+    /**
+     * A. GLOBAL DELIVERY ACKNOWLEDGMENT
+     * Listens to the chatlist topic. When any message arrives in ANY room,
+     * this context triggers a 'DELIVERED' receipt.
+     */
+    const deliverySub = clientRef.current.subscribe(
+      `/topic/chatlist/${user.id}`,
+      (msg) => {
+        const data = JSON.parse(msg.body);
+
+        // Check if this notification is for a new message
+        if (data.type === "LAST_MESSAGE") {
+          const { messageId, senderId } = data;
+
+          // If I am NOT the sender, send the DELIVERED ack
+          // Note: Backend must include messageId and senderId in this payload
+          if (senderId && String(senderId) !== String(user.id) && messageId) {
+            clientRef.current.publish({
+              destination: "/app/chat.ack",
+              body: JSON.stringify({
+                messageId: messageId,
+                status: "DELIVERED",
+              }),
+            });
+          }
+        }
+      }
+    );
+
+    /**
+     * B. RECEIPT LISTENER
+     * Listens for updates about messages I SENT (to show me if they were delivered/read)
+     */
     const receiptSub = clientRef.current.subscribe(
       `/topic/receipt/${user.id}`,
       (msg) => {
@@ -120,46 +122,61 @@ export function SocketProvider({ children }) {
       }
     );
 
-    // CHANGED: Global message listener now ONLY sends DELIVERED
-    const msgSub = clientRef.current.subscribe(
-      `/user/queue/messages`,
-      (msg) => {
-        const message = JSON.parse(msg.body);
-
-        if (Number(message.senderId) !== Number(user.id)) {
-          clientRef.current.publish({
-            destination: "/app/chat.ack",
-            body: JSON.stringify({
-              messageId: message.id,
-              status: "DELIVERED", // Only mark as delivered here
-            }),
-          });
-        }
-      }
-    );
-
+    subscriptionsRef.current.set("global-delivery", deliverySub);
     subscriptionsRef.current.set("global-receipt", receiptSub);
-    subscriptionsRef.current.set("global-messages", msgSub);
 
     return () => {
+      deliverySub.unsubscribe();
       receiptSub.unsubscribe();
-      msgSub.unsubscribe();
+      subscriptionsRef.current.delete("global-delivery");
       subscriptionsRef.current.delete("global-receipt");
-      subscriptionsRef.current.delete("global-messages");
     };
   }, [connected, user?.id]);
 
-  useEffect(() => {
-    axios.get("http://localhost:8080/requests/unread-count", {
-      withCredentials: true
-    }).then(res => {
-      setRequestCount(res.data);
-    });
-  }, []);
+  // 3. Helper Functions
+  const subscribe = (destination, callback) => {
+    if (!clientRef.current || !connected) return null;
 
+    if (subscriptionsRef.current.has(destination)) {
+      console.warn(`Already subscribed to ${destination}`);
+      return null;
+    }
+
+    const sub = clientRef.current.subscribe(destination, callback);
+    subscriptionsRef.current.set(destination, sub);
+
+    return () => {
+      sub.unsubscribe();
+      subscriptionsRef.current.delete(destination);
+    };
+  };
+
+  const unsubscribeAll = () => {
+    subscriptionsRef.current.forEach((sub) => {
+      try { sub.unsubscribe(); } catch { }
+    });
+    subscriptionsRef.current.clear();
+  };
+
+  // 4. Initial Unread Request Count
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    axios
+      .get("http://localhost:8080/connection/unread-count", { withCredentials: true })
+      .then((res) => setRequestCount(res.data))
+      .catch((err) => console.error("Failed to load unread count", err));
+  }, [isAuthenticated]);
 
   return (
-    <SocketContext.Provider value={{ client: clientRef.current, connected, subscribe, unsubscribeAll, receiptUpdate }}>
+    <SocketContext.Provider
+      value={{
+        client: clientRef.current,
+        connected,
+        subscribe,
+        unsubscribeAll,
+        receiptUpdate
+      }}
+    >
       {children}
     </SocketContext.Provider>
   );

@@ -1,10 +1,11 @@
 package com.example.chat.Service;
 
 import java.time.Instant;
-import java.util.Base64;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -40,9 +41,47 @@ public class ConnectionRequestService {
             throw new RuntimeException("You cannot send request to yourself");
         }
 
-        if (connectionRequestRepo.findByRequesterId_IdAndTargetId_Id(requesterId, targetId).isPresent()
-                || connectionRequestRepo.findByRequesterId_IdAndTargetId_Id(targetId, requesterId).isPresent()) {
-            throw new RuntimeException("Connection Request Already Exists!");
+        Optional<ConnectionRequest> existingOpt = connectionRequestRepo.findBetweenUsers(requesterId, targetId);
+
+        if (existingOpt.isPresent()) {
+
+            ConnectionRequest existing = existingOpt.get();
+
+            switch (existing.getStatus()) {
+
+                case PENDING -> {
+                    throw new RuntimeException(
+                            "You have already sent a connection request. Please wait for a response.");
+                }
+
+                case ACCEPTED -> {
+                    throw new RuntimeException(
+                            "You are already connected with this user.");
+                }
+
+                case REJECTED -> {
+                    Instant rejectedAt = existing.getUpdatedAt();
+                    long daysPassed = ChronoUnit.DAYS.between(rejectedAt, Instant.now());
+                    long cooldownDays = 7;
+
+                    if (daysPassed < cooldownDays) {
+                        long daysLeft = cooldownDays - daysPassed;
+                        boolean rejectedByTarget = existing.getTargetId().getId().equals(targetId);
+                        if (rejectedByTarget) {
+                            throw new RuntimeException(
+                                    "Your previous request was rejected. You can send a new request after "
+                                            + daysLeft + " day(s).");
+                        } else {
+                            throw new RuntimeException(
+                                    "You have rejected this request. Try connecting with the user after "
+                                            + daysLeft + " day(s).");
+                        }
+                    }
+
+                    // If 7 days passed → allow new request
+                    // (Old rejected request will be cleaned by scheduler)
+                }
+            }
         }
 
         User requester = userRepo.findById(requesterId)
@@ -110,6 +149,7 @@ public class ConnectionRequestService {
         }).toList();
     }
 
+    @Transactional
     public void acceptConnectionRequest(Long requestId) {
 
         ConnectionRequest request = connectionRequestRepo.findById(requestId)
@@ -137,7 +177,6 @@ public class ConnectionRequestService {
                 .updatedAt(Instant.now())
                 .build();
 
-        contactRepo.save(c1);
         // CONTACT 2 → requester adds target
         Contact c2 = Contact.builder()
                 .user(requester)
@@ -147,7 +186,10 @@ public class ConnectionRequestService {
                 .updatedAt(Instant.now())
                 .build();
 
-        contactRepo.save(c2);
+        if (!contactRepo.existsBetweenUsers(requester.getId(), target.getId())) {
+            contactRepo.save(c1);
+            contactRepo.save(c2);
+        }
 
         notifyContactAdded(requester, target, room);
         notifyContactAdded(target, requester, room);
@@ -196,9 +238,7 @@ public class ConnectionRequestService {
 
         messagingTemplate.convertAndSend(
                 "/topic/chatlist/" + requester.getId(),
-                Map.of(
-                        "type", "REQUEST_REJECTED",
-                        "requestId", requestId));
+                Map.of("type", "REQUEST_REJECTED", "requestId", requestId));
 
         messagingTemplate.convertAndSend(
                 "/topic/chatlist/" + target.getId(),

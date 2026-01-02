@@ -1,10 +1,13 @@
 package com.example.chat.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.example.chat.Model.ConnectionRequest;
@@ -38,5 +41,22 @@ public interface ConnectionRequestRepo extends JpaRepository<ConnectionRequest, 
             AND cr.seen = false
             """)
     List<ConnectionRequest> findUnreadRequests(Long userId);
+
+    @Modifying
+    @Query("""
+                DELETE FROM ConnectionRequest cr
+                WHERE cr.status = 'REJECTED'
+                AND cr.updatedAt < :cutoff
+            """)
+    int deleteOldRejectedRequests(@Param("cutoff") Instant cutoff);
+
+    @Query("""
+                   SELECT cr FROM ConnectionRequest cr
+                   WHERE (cr.requesterId.id = :user1 AND cr.targetId.id = :user2)
+                   OR (cr.requesterId.id = :user2 AND cr.targetId.id = :user1)
+            """)
+    Optional<ConnectionRequest> findBetweenUsers(
+            @Param("user1") Long user1,
+            @Param("user2") Long user2);
 
 }

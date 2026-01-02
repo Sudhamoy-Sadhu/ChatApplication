@@ -37,4 +37,14 @@ public interface ContactRepo extends JpaRepository<Contact, Long> {
             """)
     List<Long> findAllFriendIds(@Param("userId") Long userId);
 
+    @Query("""
+                SELECT COUNT(c) > 0
+                FROM Contact c
+                WHERE (c.user.id = :user1 AND c.contactUser.id = :user2)
+                   OR (c.user.id = :user2 AND c.contactUser.id = :user1)
+            """)
+    boolean existsBetweenUsers(
+            @Param("user1") Long user1,
+            @Param("user2") Long user2);
+
 }

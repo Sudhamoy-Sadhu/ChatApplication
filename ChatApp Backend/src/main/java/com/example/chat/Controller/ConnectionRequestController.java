@@ -111,4 +111,17 @@ public class ConnectionRequestController {
         }
     }
 
+    @GetMapping("/unread-count")
+    public ResponseEntity<?> getUnreadCount(Authentication authentication) {
+
+        try{
+            Long userId = Long.valueOf(authentication.getName());
+            Long unreadCount = requestService.getUnreadRequestCount(userId);
+            return ResponseEntity.ok(unreadCount);
+
+        }catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
 }

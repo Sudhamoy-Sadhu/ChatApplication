@@ -78,11 +78,4 @@ public class MessageController {
                 return ResponseEntity.ok().build();
         }
 
-        @PostMapping("/mark-delivered-all")
-        public ResponseEntity<?> markAllDelivered(Authentication authentication) {
-                Long userId = Long.valueOf(authentication.getName());
-                messageService.markAllRoomsAsDelivered(userId);
-                return ResponseEntity.ok().build();
-        }
-
 }

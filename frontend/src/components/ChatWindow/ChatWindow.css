@@ -195,19 +195,21 @@
 
 /* SENT */
 .tick-sent {
-    color: #9e9e9e;
+    color: #F5F7FF
+;
     /* light gray */
 }
 
 /* DELIVERED */
 .tick-delivered {
-    color: #757575;
+    color: #D6DAFF
+;
     /* darker gray */
 }
 
 /* READ */
 .tick-read {
-    color: #4fc3f7;
+    color: #38E8FF;
     /* WhatsApp blue */
 }
 

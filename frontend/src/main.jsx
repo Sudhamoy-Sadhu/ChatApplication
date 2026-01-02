@@ -15,6 +15,7 @@ import { SocketProvider } from "./components/ContextAPI/SocketContext";
 
 import axios from "axios";
 import { ToastProvider } from "./components/ContextAPI/ToastContext.jsx";
+import { RequestCountProvider } from "./components/ContextAPI/RequestCountContext.jsx";
 
 axios.defaults.withCredentials = true;
 
@@ -23,13 +24,15 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <SocketProvider>
-        <ChatProvider>
+      <ChatProvider>
+        <RequestCountProvider>
           <ToastProvider>
-            <App />
+            <SocketProvider>
+              <App />
+            </SocketProvider>
           </ToastProvider>
-        </ChatProvider>
-      </SocketProvider>
+        </RequestCountProvider>
+      </ChatProvider>
     </AuthProvider>
   </React.StrictMode>
 );

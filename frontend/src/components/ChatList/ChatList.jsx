@@ -157,6 +157,25 @@ export default function ChatList() {
           setRequestCount(prev => Math.max(prev - data.by, 0));
         }
 
+        if (data.type === "PROFILE_UPDATE") {
+          const { userId, profilePicture } = data;
+
+          // Update contacts list
+          setContacts(prev =>
+            prev.map(c =>
+              c.userId === userId
+                ? { ...c, profilePicture }
+                : c
+            )
+          );
+
+          // Update selected contact if open
+          setSelectedContact(prev =>
+            prev?.userId === userId
+              ? { ...prev, profilePicture }
+              : prev
+          );
+        }
       }
     ); // <--- Closing the first subscription callback properly
 

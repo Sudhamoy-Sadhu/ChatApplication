@@ -1,5 +1,13 @@
 package com.example.chat.Service;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
+
 import com.example.chat.DTO.UnreadCountDTO;
 import com.example.chat.Event.MessageSavedEvent;
 import com.example.chat.Model.Message;
@@ -7,14 +15,6 @@ import com.example.chat.Repository.MessageRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Service;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -97,35 +97,46 @@ public class MessageService {
     }
 
     @Transactional
-    public void markAllRoomsAsDelivered(Long userId) {
-
-        List<Message> undelivered = messageRepository.findAllUndelivered(userId);
-        if (undelivered.isEmpty())
-            return;
-
-        messageRepository.markAllAsDeliveredForUser(userId);
-
-        for (Message m : undelivered) {
-            messagingTemplate.convertAndSend(
-                    "/topic/receipt/" + m.getSenderId(),
-                    java.util.Map.of("messageId", m.getId(), "roomId", m.getRoomId(), "status", "DELIVERED"));
-        }
-    }
-
-    @Transactional
     public void processAcknowledgment(Long messageId, String status, Long userId) {
-        if ("DELIVERED".equals(status)) {
-            messageRepository.markDeliveredOne(messageId, userId);
-        } else if ("READ".equals(status)) {
-            messageRepository.markReadOne(messageId, userId);
-        }
 
         Message message = messageRepository.findWithReceiptsById(messageId).orElse(null);
         if (message == null)
             return;
 
+        if (message.getSenderId().equals(userId)) return;
+
+        if ("READ".equals(status) && !message.getSenderId().equals(userId)) {
+            messageRepository.markReadOne(messageId, userId);
+        } else if ("DELIVERED".equals(status) && !message.getSenderId().equals(userId)) {
+            messageRepository.markDeliveredOne(messageId, userId);
+        }
+
         messagingTemplate.convertAndSend(
                 "/topic/receipt/" + message.getSenderId(),
                 java.util.Map.of("messageId", message.getId(), "roomId", message.getRoomId(), "status", status));
+    }
+
+    @Transactional
+    public void deliverPendingMessages(Long userId) {
+        // 1. Find senders who are waiting for a delivery receipt from this user
+        List<Long> sendersToNotify = messageRepository.findSendersWithPendingDeliveries(userId);
+
+        if (sendersToNotify.isEmpty())
+            return;
+
+        // 2. Bulk mark all messages as DELIVERED for this user in DB
+        // (You already have this native query)
+        messageRepository.markAllAsDeliveredForUser(userId);
+
+        // 3. Notify each sender via WebSocket
+        sendersToNotify.forEach(senderId -> {
+            messagingTemplate.convertAndSend(
+                    "/topic/receipt/" + senderId,
+                    Map.of(
+                            "status", "DELIVERED",
+                            "deliveredTo", userId,
+                            "allPending", true // Custom flag to tell frontend to mark all SENT as DELIVERED
+            ));
+        });
     }
 }

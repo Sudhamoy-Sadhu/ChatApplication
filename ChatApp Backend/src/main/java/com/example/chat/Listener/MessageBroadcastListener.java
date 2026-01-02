@@ -72,6 +72,8 @@ public class MessageBroadcastListener {
                             "/topic/chatlist/" + userId,
                             Map.of(
                                     "type", "LAST_MESSAGE",
+                                    "messageId", m.getId(),
+                                    "senderId", m.getSenderId(),
                                     "roomId", m.getRoomId(),
                                     "msg", roomPreview(m.getContent()),
                                     "time", m.getSentAt(),

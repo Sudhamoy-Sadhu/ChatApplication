@@ -10,7 +10,6 @@ import { useToast } from "../ContextAPI/ToastContext";
 import { RequestCountContext } from "../ContextAPI/RequestCountContext";
 
 
-
 export default function Sidebar() {
   const { searchQuery, setSearchQuery, setSearchResults } =
     useContext(ChatContext);
@@ -109,7 +108,7 @@ export default function Sidebar() {
           <div className="settings-menu">
             <button className="menu-item" onClick={() => goToPage("profile")}>Profile</button>
             <button className="menu-item" onClick={() => goToPage("request")}>Connection Requests {requestCount > 0 && (
-              <span className="conn-badge">{requestCount}</span>
+              <span className="conn-badge"> {requestCount} </span>
             )}</button>
             <button className="menu-item" onClick={handleLogOut}>
               Logout

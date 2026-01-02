@@ -9,6 +9,11 @@ export default function ConnectionRequests() {
     const { setRequestCount } = useContext(RequestCountContext);
     const [requests, setRequests] = useState([]);
 
+    const getFirstName = (name = "") => {
+        return name.trim().split(/\s+/)[0];
+    };
+
+
     // Fetch connection requests
     useEffect(() => {
         const fetchRequests = async () => {
@@ -143,9 +148,10 @@ export default function ConnectionRequests() {
                                     {req.status === "ACCEPTED" && (
                                         <p className="cr-connected">Connected</p>
                                     )}
-
-                                    {req.status === "REJECTED" && isTarget && (
-                                        <p className="cr-rejected">Rejected</p>
+                                    {req.status === "REJECTED" && (
+                                        <p className="cr-rejected">{isRequester
+                                            ? `Rejected by ${getFirstName(req.target.name)}`
+                                            : "You rejected this request"}</p>
                                     )}
                                 </div>
                             </div>
