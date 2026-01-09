@@ -14,6 +14,7 @@ import { AuthContext } from "../ContextAPI/AuthContext";
 import { SocketContext } from "../ContextAPI/SocketContext";
 import { useToast } from "../ContextAPI/ToastContext";
 import { ModalContext } from "../ContextAPI/ModalContext";
+import { IoIosArrowDropdownCircle } from "react-icons/io";
 
 export default function ChatWindow() {
   const { contacts, setContacts, selectedContact, setSelectedContact } = useContext(ChatContext);
@@ -23,14 +24,15 @@ export default function ChatWindow() {
   const [newMessage, setNewMessage] = useState("");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const emojiPickerRef = useRef(null);
-  const { client, connected } = useContext(SocketContext);
+  const { client, connected, receiptUpdate } = useContext(SocketContext);
   const messagesContainerRef = useRef(null);
   const isAtBottomRef = useRef(true);
   const initialLoadRef = useRef(true);
   const pendingReceiptsRef = useRef(new Map());
-  const { receiptUpdate } = useContext(SocketContext);
-  const { showToast } = useToast;
+  const { showToast } = useToast();
   const { openImageModal } = useContext(ModalContext);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const scrollHideTimerRef = useRef(null);
 
 
 
@@ -281,6 +283,42 @@ export default function ChatWindow() {
     }
   };
 
+  
+  const addEmoji = (emoji) => {
+    setNewMessage((prev) => prev + emoji.unicode);
+  };
+  
+  const scrollToBottomSmooth = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: "smooth"
+    });
+  };
+  
+  useEffect(() => {
+    return () => {
+      if (scrollHideTimerRef.current) {
+        clearTimeout(scrollHideTimerRef.current);
+      }
+    };
+  }, []);
+  
+  
+  const pauseScrollHide = () => {
+    if (scrollHideTimerRef.current) {
+      clearTimeout(scrollHideTimerRef.current);
+    }
+  };
+  
+  const resumeScrollHide = () => {
+    scrollHideTimerRef.current = setTimeout(() => {
+      setShowScrollDown(false);
+    }, 2000);
+  };
+  
   if (!selectedContact) {
     return (
       <div className="chat-window-placeholder">
@@ -290,10 +328,6 @@ export default function ChatWindow() {
     );
   }
 
-  const addEmoji = (emoji) => {
-    setNewMessage((prev) => prev + emoji.unicode);
-  };
-
 
   return (
     <div className="chat-container">
@@ -301,8 +335,8 @@ export default function ChatWindow() {
       <div className="chat-header">
         <div className="sender-info">
           <div className="avatar" onClick={(e) => {
-              e.stopPropagation(); openImageModal(selectedContact.profilePicture, selectedContact.username);
-            }}>
+            e.stopPropagation(); openImageModal(selectedContact.profilePicture, selectedContact.username);
+          }}>
             <img src={selectedContact.profilePicture || "/assets/default-logo.png"} alt=""></img>
           </div>
 
@@ -326,11 +360,28 @@ export default function ChatWindow() {
           const el = messagesContainerRef.current;
           if (!el) return;
 
-          const threshold = 100;
+          const threshold = 120;
           const atBottom =
             el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
 
           isAtBottomRef.current = atBottom;
+          if (!atBottom) {
+            // 👇 Show button immediately
+            setShowScrollDown(true);
+
+            // 👇 Reset existing timer
+            if (scrollHideTimerRef.current) {
+              clearTimeout(scrollHideTimerRef.current);
+            }
+
+            // 👇 Auto-hide after 2s of no scrolling
+            scrollHideTimerRef.current = setTimeout(() => {
+              setShowScrollDown(false);
+            }, 2000);
+          } else {
+            // If user scrolls back to bottom, hide instantly
+            setShowScrollDown(false);
+          }
         }}>
 
         <div className="new-chat">
@@ -413,6 +464,18 @@ export default function ChatWindow() {
 
         <button className="send" onClick={sendMessage}>➤</button>
       </div>
+      {showScrollDown && (
+        <div
+          className="scroll-to-bottom-smooth"
+          onClick={scrollToBottomSmooth}
+          onMouseEnter={pauseScrollHide}
+          onMouseLeave={resumeScrollHide}
+        >
+          <IoIosArrowDropdownCircle />
+        </div>
+      )}
+
+
     </div>
   );
 }

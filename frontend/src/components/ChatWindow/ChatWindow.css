@@ -195,15 +195,13 @@
 
 /* SENT */
 .tick-sent {
-    color: #F5F7FF
-;
+    color: #F5F7FF;
     /* light gray */
 }
 
 /* DELIVERED */
 .tick-delivered {
-    color: #D6DAFF
-;
+    color: #D6DAFF;
     /* darker gray */
 }
 
@@ -428,4 +426,57 @@
     font-family: "Akatab", sans-serif;
     font-weight: 800;
     font-style: normal;
+}
+
+.scroll-to-bottom-smooth {
+    position: absolute;
+    bottom: 96px;
+    right: 18px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #09395D;
+    font-size: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 100;
+    box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.18),
+        0 2px 4px rgba(0, 0, 0, 0.12);
+    transition:
+        transform 0.18s ease,
+        opacity 0.2s ease,
+        box-shadow 0.18s ease;
+}
+
+.scroll-to-bottom-smooth:hover {
+    transform: translateY(-2px) scale(1.08);
+    box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.25),
+        0 4px 8px rgba(0, 0, 0, 0.18);
+}
+
+.scroll-to-bottom-smooth.hide {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.85);
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.scroll-to-bottom-smooth {
+    animation: popIn 0.18s ease-out;
 }
