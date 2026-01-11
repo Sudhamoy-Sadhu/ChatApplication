@@ -19,6 +19,7 @@ export default function Sidebar() {
   const { goBack } = usePageManager();
   const { showToast } = useToast();
   const { requestCount } = useContext(RequestCountContext);
+  const [isLoggedOut, setIsLoggedOut] = useState(false);
 
 
   const navigate = useNavigate();
@@ -49,6 +50,10 @@ export default function Sidebar() {
   };
 
   const handleLogOut = async () => {
+
+    if(isLoggedOut) return;
+    setIsLoggedOut(true);
+
     try {
       const response = await axios.post(
         "http://localhost:8080/auth/logout",
@@ -100,7 +105,7 @@ export default function Sidebar() {
       <div className="settings" ref={menuRef}>
         <h2 className="logo">ChatAPP</h2>
         {/* 🌟 SETTINGS ICON + DROPDOWN */}
-        <span className="settings-icon" onClick={() => setShowMenu(!showMenu)}>
+        <span className="settings-icon" onClick={() => !isLoggedOut && setShowMenu(!showMenu)}>
           <FaGear />
         </span>
 
@@ -110,8 +115,8 @@ export default function Sidebar() {
             <button className="menu-item" onClick={() => goToPage("request")}>Connection Requests {requestCount > 0 && (
               <span className="conn-badge"> {requestCount} </span>
             )}</button>
-            <button className="menu-item" onClick={handleLogOut}>
-              Logout
+            <button className="menu-item" onClick={handleLogOut} disabled={isLoggedOut}>
+              {isLoggedOut ? "Logging out..." : "Logout"}
             </button>
           </div>
         )}

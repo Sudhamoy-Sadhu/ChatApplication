@@ -3,7 +3,6 @@ package com.example.chat.Controller;
 import com.example.chat.DTO.MessageDTO;
 import com.example.chat.DTO.MessageSendRequestDTO;
 import com.example.chat.Model.Message;
-import com.example.chat.Repository.MessageRepository;
 import com.example.chat.Service.MessageService;
 
 import lombok.RequiredArgsConstructor;
@@ -21,7 +20,6 @@ import java.util.Set;
 public class MessageController {
 
         private final MessageService messageService;
-        private final MessageRepository messageRepository;
 
         // ==========================
         // SEND MESSAGE
@@ -53,9 +51,9 @@ public class MessageController {
         // GET ROOM MESSAGES
         // ==========================
         @GetMapping("/{roomId}")
-        public ResponseEntity<?> getMessages(@PathVariable Long roomId) {
-                List<Message> messages = messageRepository.findByRoomIdWithReceipts(roomId);
-
+        public ResponseEntity<?> getMessages(@PathVariable Long roomId, Authentication authentication) {
+                Long userId = Long.valueOf(authentication.getName());
+                List<Message> messages = messageService.getMessages(roomId, userId);
                 List<MessageDTO> dtos = messages.stream().map(m -> MessageDTO.builder()
                                 .id(m.getId())
                                 .senderId(m.getSenderId())
@@ -78,4 +76,14 @@ public class MessageController {
                 return ResponseEntity.ok().build();
         }
 
+        @DeleteMapping("/{roomId}/clearChat")
+        public ResponseEntity<?> clearChat(@PathVariable Long roomId, Authentication auth) {
+                Long userId = Long.valueOf(auth.getName());
+                try {
+                        messageService.clearChatForUser(roomId, userId);
+                        return ResponseEntity.ok("Chat cleared successfully (for you only)");
+                } catch (Exception e) {
+                        return ResponseEntity.internalServerError().body("Failed to clear chat");
+                }
+        }
 }

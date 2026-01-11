@@ -1,6 +1,7 @@
 package com.example.chat.Service;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -11,7 +12,9 @@ import org.springframework.stereotype.Service;
 import com.example.chat.DTO.UnreadCountDTO;
 import com.example.chat.Event.MessageSavedEvent;
 import com.example.chat.Model.Message;
+import com.example.chat.Model.RoomClearance;
 import com.example.chat.Repository.MessageRepository;
+import com.example.chat.Repository.RoomClearanceRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ public class MessageService {
     private final ApplicationEventPublisher eventPublisher;
     private final RoomService roomService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final RoomClearanceRepository roomClearanceRepository;
 
     @Transactional
     public Message saveMessage(Long roomId, Long senderId, String content) {
@@ -52,8 +56,13 @@ public class MessageService {
         return content.length() > 100 ? content.substring(0, 100) : content;
     }
 
-    public List<Message> getMessages(Long roomId) {
-        return messageRepository.findByRoomIdOrderBySentAtAsc(roomId);
+    public List<Message> getMessages(Long roomId, Long userId) {
+        RoomClearance clearance = roomClearanceRepository.findByRoomIdAndUserId(roomId, userId)
+                .orElse(null);
+
+        Instant minDate = (clearance != null) ? clearance.getClearedAt() : Instant.EPOCH;
+
+        return messageRepository.findByRoomIdWithReceiptsAfter(roomId, minDate);
     }
 
     public int getUnreadCount(Long roomId, Long userId) {
@@ -103,7 +112,8 @@ public class MessageService {
         if (message == null)
             return;
 
-        if (message.getSenderId().equals(userId)) return;
+        if (message.getSenderId().equals(userId))
+            return;
 
         if ("READ".equals(status) && !message.getSenderId().equals(userId)) {
             messageRepository.markReadOne(messageId, userId);
@@ -138,5 +148,45 @@ public class MessageService {
                             "allPending", true // Custom flag to tell frontend to mark all SENT as DELIVERED
             ));
         });
+    }
+
+    @Transactional
+    public void clearChatForUser(Long roomId, Long userId) {
+        RoomClearance clearance = roomClearanceRepository.findByRoomIdAndUserId(roomId, userId)
+                .orElse(RoomClearance.builder()
+                        .roomId(roomId)
+                        .userId(userId)
+                        .build());
+        
+        clearance.setClearedAt(Instant.now());
+        roomClearanceRepository.save(clearance);
+
+        // =====================================================
+        // 2. REAL-TIME WEBSOCKET UPDATES
+        // =====================================================
+
+        // A. Notify the Open Chat Window to clear messages
+        Map<String, Object> clearEvent = new HashMap<>();
+        clearEvent.put("type", "CHAT_CLEARED");
+        clearEvent.put("roomId", roomId);
+
+        messagingTemplate.convertAndSendToUser(
+                userId.toString(), 
+                "/queue/chat-events", 
+                clearEvent
+        );
+
+        // B. Notify the Chat List (Sidebar) to clear the "Last Message" preview
+        Map<String, Object> listUpdate = new HashMap<>();
+        listUpdate.put("type", "LAST_MESSAGE");
+        listUpdate.put("roomId", roomId);
+        listUpdate.put("msg", ""); 
+        listUpdate.put("time", null);
+        listUpdate.put("formattedTime", "");
+
+        messagingTemplate.convertAndSend(
+                "/topic/chatlist/" + userId,
+                listUpdate
+        );
     }
 }

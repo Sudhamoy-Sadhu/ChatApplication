@@ -15,6 +15,7 @@ import { SocketContext } from "../ContextAPI/SocketContext";
 import { useToast } from "../ContextAPI/ToastContext";
 import { ModalContext } from "../ContextAPI/ModalContext";
 import { IoIosArrowDropdownCircle } from "react-icons/io";
+import { IoMdClose } from "react-icons/io";
 
 export default function ChatWindow() {
   const { contacts, setContacts, selectedContact, setSelectedContact } = useContext(ChatContext);
@@ -33,6 +34,8 @@ export default function ChatWindow() {
   const { openImageModal } = useContext(ModalContext);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const scrollHideTimerRef = useRef(null);
+  const [dropdownMenu, setDropdownMenu] = useState(false);
+  const [delteChatPopUp, setDeleteChatpopUp] = useState(false);
 
 
 
@@ -50,10 +53,18 @@ export default function ChatWindow() {
       ) {
         setEmojiPickerVisible(false);
       }
+
+      if (dropdownMenu && !event.target.closest('.chat-actions')) {
+        setDropdownMenu(false);
+      }
+
+      if(delteChatPopUp && !event.target.closest('.inner-container')){
+        setDeleteChatpopUp(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [emojiPickerVisible]);
+  }, [emojiPickerVisible, dropdownMenu]);
 
 
   // Update header if status changes
@@ -190,10 +201,18 @@ export default function ChatWindow() {
       }
     );
 
+    const subPrivate = client.subscribe(`/user/queue/chat-events`, (msg) => {
+      const event = JSON.parse(msg.body);
+
+      if (event.type === "CHAT_CLEARED" && Number(event.roomId) === Number(selectedContact.roomId)) {
+        setMessages([]);
+      }
+    });
 
     return () => {
       isMounted = false;
       sub.unsubscribe();
+      subPrivate.unsubscribe();
     };
   }, [selectedContact?.roomId, client, connected, currentUserId]);
 
@@ -283,21 +302,21 @@ export default function ChatWindow() {
     }
   };
 
-  
+
   const addEmoji = (emoji) => {
     setNewMessage((prev) => prev + emoji.unicode);
   };
-  
+
   const scrollToBottomSmooth = () => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    
+
     el.scrollTo({
       top: el.scrollHeight,
       behavior: "smooth"
     });
   };
-  
+
   useEffect(() => {
     return () => {
       if (scrollHideTimerRef.current) {
@@ -305,20 +324,31 @@ export default function ChatWindow() {
       }
     };
   }, []);
-  
-  
+
+
   const pauseScrollHide = () => {
     if (scrollHideTimerRef.current) {
       clearTimeout(scrollHideTimerRef.current);
     }
   };
-  
+
   const resumeScrollHide = () => {
     scrollHideTimerRef.current = setTimeout(() => {
       setShowScrollDown(false);
     }, 2000);
   };
-  
+
+  const clearAllChat = async ()=> {
+    try {
+      await axios.delete(`http://localhost:8080/messages/${selectedContact.roomId}/clearChat`, {withCredentials: true});
+      showToast.success("Messages Deleted Successfully!");
+      setDeleteChatpopUp(false);
+    } catch (error) {
+      console.log(error);
+      showToast.error("Error deleting messages")
+    };
+  };
+
   if (!selectedContact) {
     return (
       <div className="chat-window-placeholder">
@@ -351,7 +381,14 @@ export default function ChatWindow() {
         <div className="chat-actions">
           <span><FaVideo /></span>
           <span><IoCall /></span>
-          <span><BsThreeDotsVertical /></span>
+          <span onClick={() => setDropdownMenu(prev => !prev)}><BsThreeDotsVertical /></span>
+          {dropdownMenu && (
+            <div className="chatwindow-dropdown-main">
+              <button>New Group</button>
+              <button>Block</button>
+              <button onClick={() => {setDeleteChatpopUp(prev => !prev), setDropdownMenu(false)}}>Delete Chat</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -475,7 +512,21 @@ export default function ChatWindow() {
         </div>
       )}
 
-
+      {delteChatPopUp &&(
+        <div className="delteChat-main">
+          <div className="inner-container">
+            <div className="delete-popup-content">
+            <span onClick={()=> setDeleteChatpopUp(false)}><IoMdClose /></span>
+            <h3>Are you sure you want to Delete all messages?</h3>
+            <p>This will delete entire chat history for you.</p>
+            </div>
+            <div className="delete-action-buttons">
+              <button className="delete-yes" onClick={clearAllChat}>Yes, I'm Sure</button>
+              <button className="delete-no" onClick={()=> setDeleteChatpopUp(false)}>No, Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

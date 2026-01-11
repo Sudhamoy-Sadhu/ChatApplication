@@ -480,3 +480,160 @@
 .scroll-to-bottom-smooth {
     animation: popIn 0.18s ease-out;
 }
+
+.chatwindow-dropdown-main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    position: absolute;
+    padding: 5px;
+    width: 10%;
+    top: 12vh;
+    right: 2.5vw;
+    background: #ffffff;
+    border-radius: 10px 0px 10px 10px;
+    box-sizing: border-box;
+}
+
+.chatwindow-dropdown-main button {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+    height: 2rem;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    font-weight: 400;
+    background: #fff;
+    padding: 5px;
+    animation: fadeSlideIn 0.25s forwards ease-out;
+
+    &:hover {
+        background: #F1F1F1;
+    }
+}
+
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.delteChat-main {
+    position: fixed;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    width: 75%;
+    height: 100%;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.inner-container {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    background: #fff;
+    color: #000;
+    width: 40%;
+    height: 23%;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+}
+
+
+.delteChat-main .inner-container .delete-popup-content span{
+    position: relative;
+    display: flex;
+    justify-content: end;
+    align-items: center;
+    width: 10%;
+    height: 10%;
+    left: 52%;
+    cursor: pointer;
+}
+
+.delete-popup-content{
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 70%;
+    width: 90%;
+    gap: 12%;
+}
+
+.delete-popup-content h3{
+    width: 100%;
+    font-size: larger;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-popup-content p{
+    width: 100%;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-action-buttons{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    height: 30%;
+}
+
+.delete-yes{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100px;
+    height: 30px;
+    border: none;
+    outline: none;
+    color: white;
+    background: #E02424;
+    cursor: pointer;
+    border-radius: 5px;
+    &:hover{
+        /* color: #000; */
+        background: grey;
+    }
+}
+.delete-no{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100px;
+    height: 30px;
+    border: none;
+    outline: none;
+    color: white;
+    background: #1F2937;
+    cursor: pointer;
+    border-radius: 5px;
+    &:hover{
+        /* color: #000; */
+        background: grey;
+    }
+}
