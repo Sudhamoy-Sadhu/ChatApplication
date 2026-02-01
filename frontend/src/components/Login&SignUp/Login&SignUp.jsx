@@ -8,6 +8,7 @@ import "./Login&SignUp.css";
 import Carousel from "./Carousel";
 import { AuthContext } from "../ContextAPI/AuthContext";
 import { useLocation } from "react-router-dom";
+import { FaGear } from "react-icons/fa6";
 
 const LoginSignupPage = () => {
   const navigate = useNavigate();
@@ -22,6 +23,13 @@ const LoginSignupPage = () => {
     username: "",
   });
   const location = useLocation();
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [showFullLoader, setShowFullLoader] = useState(false);
+
 
   const inviteToken = new URLSearchParams(location.search).get("invite");
 
@@ -115,32 +123,10 @@ const LoginSignupPage = () => {
         setTimeout(() => navigate("/"), 1800);
       } else {
         try {
-          // 🔹 SIGNUP API CALL
-          const response = await axios.post(
-            "http://localhost:8080/signUp/register",
-            {
-              username: formData.username,
-              email: formData.email,
-              password: formData.password,
-              confirmPassword: formData.confirmPassword,
-              inviteToken: inviteToken || null,
-            }
-          );
+          setShowFullLoader(true);
+          await sendSignupOtp(true);
+          setShowOtpModal(true);
 
-          if (response.status === 200 || response.status === 201) {
-            const successMessage =
-              response.data.message || "Signup successful! Please login now.";
-            toast.success(`🎉 ${successMessage}`, { autoClose: 2000 });
-            setFormData({
-              email: "",
-              password: "",
-              confirmPassword: "",
-              username: "",
-            });
-
-            // Switch to login form after short delay
-            setTimeout(() => setIsLogin(true), 2000);
-          }
         } catch (error) {
           console.error("Signup error:", error);
           if (error.response) {
@@ -153,6 +139,8 @@ const LoginSignupPage = () => {
               autoClose: 2500,
             });
           }
+        } finally {
+          setShowFullLoader(false);
         }
       }
     } catch (error) {
@@ -175,6 +163,94 @@ const LoginSignupPage = () => {
       }
     }
   };
+
+  const sendSignupOtp = async (isFirstSend = false) => {
+
+    if (!isFirstSend && (sendingOtp || otpTimer > 0)) return;
+
+    try {
+      setSendingOtp(true);
+
+      await axios.post("http://localhost:8080/signUp/send-otp", {
+        email: formData.email,
+      });
+
+      toast.success("Email Verification OTP Sent!");
+      setOtpTimer(60);
+      return true;
+    } catch (err) {
+      toast.error(err.response?.data || "Failed to send OTP");
+      throw err;
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (otpTimer <= 0) return;
+
+    const t = setInterval(() => {
+      setOtpTimer((p) => p - 1);
+    }, 1000);
+
+    return () => clearInterval(t);
+  }, [otpTimer]);
+
+
+  const verifyOtpAndRegister = async () => {
+    if (!/^\d{6}$/.test(otp)) {
+      toast.error("Enter valid 6-digit OTP");
+      return;
+    }
+
+
+    try {
+      setVerifyingOtp(true);
+
+      const otpResponse = await axios.post("http://localhost:8080/signUp/verify-otp", {
+        email: formData.email,
+        otp: otp,
+      });
+
+      const emailJwt = otpResponse.data;
+
+
+      // ✅ OTP verified — now register
+      const res = await axios.post(
+        "http://localhost:8080/signUp/register",
+        {
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          inviteToken: inviteToken || null,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${emailJwt}`,
+          },
+        }
+      );
+
+      toast.success("Signup successful! Please login.");
+      setShowOtpModal(false);
+      setIsLogin(true);
+      setFormData({ email: "", password: "", confirmPassword: "", username: "" });
+      setOtp("");
+    } catch (err) {
+      toast.error(err.response?.data || "OTP verification failed");
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const handleOutsideClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setOtp("");
+      setShowOtpModal(false);
+    }
+  };
+
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -393,6 +469,110 @@ const LoginSignupPage = () => {
           </div>
         </div>
       </div>
+      {showOtpModal && (
+        <div className="otp-modal-overlay" onClick={handleOutsideClick}>
+          <div className="otp-modal">
+            <h2>Verify Your Account</h2>
+            <p>
+              We sent a verification code to <br />
+              <span className="otp-email">{formData.email}</span>
+            </p>
+
+            <div className="otp-box-container">
+              {[...Array(6)].map((_, index) => (
+                <input
+                  key={index}
+                  id={`otp-${index}`}
+                  type="text"
+                  className="otp-box"
+                  maxLength="1"
+                  inputMode="numeric" // Better for mobile keyboards
+                  value={otp[index] || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    if (!val) return; // Handle empty via onKeyDown
+
+                    const newOtpArray = otp.split("");
+                    newOtpArray[index] = val.at(-1); // Take the last character typed
+                    const finalOtp = newOtpArray.join("");
+                    setOtp(finalOtp);
+
+                    // Auto-focus next
+                    if (val && index < 5) {
+                      document.getElementById(`otp-${index + 1}`).focus();
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Backspace") {
+                      if (!otp[index] && index > 0) {
+                        // Case 1: Box is already empty, move to previous and clear it
+                        const newOtpArray = otp.split("");
+                        newOtpArray[index - 1] = "";
+                        setOtp(newOtpArray.join(""));
+                        document.getElementById(`otp-${index - 1}`).focus();
+                      } else {
+                        // Case 2: Box has a value, just clear it
+                        const newOtpArray = otp.split("");
+                        newOtpArray[index] = "";
+                        setOtp(newOtpArray.join(""));
+                      }
+                    }
+                  }}
+                  onPaste={(e) => {
+                    // PRO TIP: Handle pasting the whole code at once
+                    const pasteData = e.clipboardData.getData("text").slice(0, 6);
+                    if (/^\d+$/.test(pasteData)) {
+                      setOtp(pasteData);
+                      document.getElementById(`otp-${pasteData.length - 1}`).focus();
+                    }
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="otp-timer">
+              {otpTimer > 0 ? (
+                <span className="timer-text">Resend code in <b>{otpTimer}s</b></span>
+              ) : (
+                <div className="resend-wrapper">
+                  Didn't receive the code?
+                  <button className="resend-btn" onClick={sendSignupOtp}>Resend</button>
+                </div>
+              )}
+            </div>
+
+            <button
+              className="verify-btn"
+              onClick={verifyOtpAndRegister}
+              disabled={verifyingOtp || otp.length < 6}
+            >
+              {verifyingOtp ? "Verifying..." : "Verify"}
+            </button>
+
+            <button className="cancel-btn" onClick={() => { setOtp(""); setShowOtpModal(false)}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showFullLoader && (
+        <div className="fullscreen-loader">
+          <div className="loader-content">
+            <div className="gear-system">
+              <div className="gear-outer"></div>
+              <div className="gear-inner"></div>
+              <div className="gear-core"></div>
+            </div>
+            <div className="text-container">
+              <p>Generating Verification Code</p>
+              <div className="loading-dots"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       <ToastContainer position="top-right" autoClose={2000} theme="light" />
     </>
   );

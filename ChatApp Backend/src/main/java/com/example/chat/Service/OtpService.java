@@ -1,19 +1,18 @@
 package com.example.chat.Service;
 
+import java.time.LocalDateTime;
+import java.util.Random;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.chat.Model.PasswordResetToken;
-import com.example.chat.Model.User;
-import com.example.chat.Repository.PasswordResetTokenRepo;
+import com.example.chat.Model.EmailOtpToken;
+import com.example.chat.Model.EmailOtpToken.OtpPurpose;
+import com.example.chat.Repository.EmailOtpTokenRepo;
 import com.example.chat.Repository.UserRepo;
-
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Random;
 
 @Service
 public class OtpService {
@@ -25,53 +24,76 @@ public class OtpService {
     private UserRepo userRepo;
 
     @Autowired
-    private PasswordResetTokenRepo tokenRepo;
+    private EmailOtpTokenRepo tokenRepo;
+
     @Transactional
-    public String sendOtpEmail(String toEmail) {
-        Optional<User> existingUser = userRepo.findByEmail(toEmail);
-        if (existingUser.isEmpty()) {
-            throw new RuntimeException("No user found with email: " + toEmail);
+    public void sendOtp(String email, OtpPurpose purpose) {
+
+        // Flow validation
+        if (purpose == OtpPurpose.PASSWORD_RESET &&
+                userRepo.findByEmail(email).isEmpty()) {
+            throw new RuntimeException("User not found");
         }
+
+        if (purpose == OtpPurpose.SIGNUP &&
+                userRepo.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Email already registered");
+        }
+
+        tokenRepo.deleteByEmailAndPurpose(email, purpose);
 
         String otp = generateOtp();
 
-        // Set expiry time (5 minutes from now)
-        LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(5);
+        EmailOtpToken token = new EmailOtpToken();
+        token.setEmail(email);
+        token.setOtp(otp);
+        token.setExpiryTime(LocalDateTime.now().plusMinutes(5));
+        token.setPurpose(purpose);
+        token.setAttempts(0);
 
-        // Remove old OTPs for this email (if any)
-        tokenRepo.deleteByEmail(toEmail);
-
-        // Save new OTP
-        PasswordResetToken token = new PasswordResetToken(toEmail, otp, expiryTime);
         tokenRepo.save(token);
 
-        // Send mail
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(toEmail);
-        message.setSubject("Your OTP Code");
-        message.setText("Your OTP for password reset is: " + otp + "\n\nThis OTP is valid for 5 minutes.");
-        message.setFrom("chatapp2400@gmail.com");
-
-        mailSender.send(message);
-
-        System.out.println("✅ OTP sent to: " + toEmail);
-        return otp;
+        sendMail(email, otp, purpose);
     }
 
-    public boolean verifyOtp(String email, String enteredOtp) {
-        PasswordResetToken token = tokenRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("No OTP found for this email"));
+    @Transactional
+    public void verifyOtp(String email, String otp, OtpPurpose purpose) {
+
+        EmailOtpToken token = tokenRepo
+                .findByEmailAndPurpose(email, purpose)
+                .orElseThrow(() -> new RuntimeException("OTP not found"));
 
         if (token.getExpiryTime().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("OTP expired");
         }
 
-        return token.getOtp().equals(enteredOtp);
+        if (!token.getOtp().equals(otp)) {
+            token.setAttempts(token.getAttempts() + 1);
+            tokenRepo.save(token);
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        tokenRepo.delete(token); // one time use
+    }
+
+    private void sendMail(String email, String otp, OtpPurpose purpose) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+
+        if (purpose == OtpPurpose.SIGNUP) {
+            message.setSubject("Verify your email");
+            message.setText("Your signup verification OTP: " + otp);
+        } else {
+            message.setSubject("Reset password OTP");
+            message.setText("Your password reset OTP: " + otp);
+        }
+
+        message.setFrom("chatapp2400@gmail.com");
+        mailSender.send(message);
     }
 
     private String generateOtp() {
-        Random random = new Random();
-        int otpValue = 100000 + random.nextInt(900000);
+        int otpValue = 100000 + new Random().nextInt(900000);
         return String.valueOf(otpValue);
     }
 }

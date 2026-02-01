@@ -41,7 +41,8 @@ public class SecurityConfig {
                 .and()
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/.well-known/jwks.json", "/signUp/**", "/forgot-password/**",
+                        .requestMatchers("/auth/**", "/.well-known/jwks.json", "/signUp/send-otp",
+                                "/signUp/verify-otp", "/forgot-password/**",
                                 "/ws/**")
                         .permitAll()
                         .anyRequest().authenticated())

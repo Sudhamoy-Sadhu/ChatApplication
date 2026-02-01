@@ -11,7 +11,6 @@ window.process = process;
 
 import { ChatProvider } from "./components/ContextAPI/ChatContext";
 import { AuthProvider } from "./components/ContextAPI/AuthContext";
-import { SocketProvider } from "./components/ContextAPI/SocketContext";
 
 import axios from "axios";
 import { ToastProvider } from "./components/ContextAPI/ToastContext.jsx";
@@ -27,9 +26,7 @@ root.render(
       <ChatProvider>
         <RequestCountProvider>
           <ToastProvider>
-            <SocketProvider>
               <App />
-            </SocketProvider>
           </ToastProvider>
         </RequestCountProvider>
       </ChatProvider>

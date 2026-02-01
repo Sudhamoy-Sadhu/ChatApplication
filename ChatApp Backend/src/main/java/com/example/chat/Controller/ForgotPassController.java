@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.chat.DTO.ForgotPassDTO;
 import com.example.chat.DTO.ForgotPassOtpDTO;
+import com.example.chat.Model.EmailOtpToken.OtpPurpose;
 import com.example.chat.Service.OtpService;
 import com.example.chat.Service.UserService;
 
@@ -31,7 +32,7 @@ public class ForgotPassController {
     @PostMapping("/get-otp")
     public ResponseEntity<?> getOtp(@Valid @RequestBody ForgotPassOtpDTO forgotPassOtpDTO){
         try {
-            otpService.sendOtpEmail(forgotPassOtpDTO.getEmail());
+            otpService.sendOtp(forgotPassOtpDTO.getEmail(), OtpPurpose.PASSWORD_RESET);
             return ResponseEntity.ok("OTP Sent Successfully to your email");
         }catch(RuntimeException e){
             return ResponseEntity.badRequest().body(e.getMessage());

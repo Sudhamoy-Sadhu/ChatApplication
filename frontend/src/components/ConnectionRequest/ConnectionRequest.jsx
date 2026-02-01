@@ -66,13 +66,13 @@ export default function ConnectionRequests() {
         );
     }
 
-    useEffect(() => {
-        axios.post("http://localhost:8080/requests/mark-seen", {}, {
-            withCredentials: true
-        });
+    // useEffect(() => {
+    //     axios.post("http://localhost:8080/requests/mark-seen", {}, {
+    //         withCredentials: true
+    //     });
 
-        setRequestCount(0);
-    }, []);
+    //     setRequestCount(0);
+    // }, []);
 
     return (
         <div className="cr-wrapper">

@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.example.chat.DTO.ForgotPassDTO;
 import com.example.chat.DTO.UserResponseDTO;
 import com.example.chat.DTO.UserSearchDTO;
+import com.example.chat.Model.EmailOtpToken.OtpPurpose;
 import com.example.chat.Model.User;
 import com.example.chat.Repository.ContactRepo;
 import com.example.chat.Repository.UserRepo;
@@ -128,9 +129,8 @@ public byte[] updateProfilePicture(Long userId, MultipartFile file) throws IOExc
 
         String email = forgotPassDTO.getEmail().trim();
 
-        if (!otpService.verifyOtp(email, forgotPassDTO.getOtp())) {
-            throw new IllegalArgumentException("Invalid or expired OTP");
-        }
+        otpService.verifyOtp(email, forgotPassDTO.getOtp(), OtpPurpose.PASSWORD_RESET);
+
         if (!forgotPassDTO.getNewPassword().equals(forgotPassDTO.getConfirmNewPass())) {
             throw new IllegalArgumentException("Passwords do not match");
         }

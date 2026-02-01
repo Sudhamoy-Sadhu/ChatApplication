@@ -283,7 +283,61 @@ public class JwtService {
         String email = user.getEmail();
         String profilePicture = ImageUtils.getProfilePicture(user.getProfilePicture());
         User.Status status = user.getStatus();
-        return new LoginResponseDTO(id,accessToken, username, email, profilePicture, status);
+        return new LoginResponseDTO(id, accessToken, username, email, profilePicture, status);
+    }
+
+    public String createEmailVerificationToken(String email) {
+
+        Instant now = Instant.now();
+
+        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                .subject(email)
+                .issuer(issuer)
+                .issueTime(Date.from(now))
+                .expirationTime(Date.from(now.plusSeconds(10 * 60))) // 10 minutes
+                .claim("typ", "email_verification")
+                .build();
+
+        SignedJWT signed = new SignedJWT(
+                new JWSHeader.Builder(JWSAlgorithm.RS256)
+                        .type(JOSEObjectType.JWT)
+                        .build(),
+                claims);
+
+        try {
+            signed.sign(new RSASSASigner(privateKey));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to sign email verification token", e);
+        }
+
+        return signed.serialize();
+    }
+
+    public String validateEmailVerificationToken(String token) {
+
+        try {
+            SignedJWT jwt = SignedJWT.parse(token);
+
+            JWSVerifier verifier = new RSASSAVerifier(publicKey);
+            if (!jwt.verify(verifier))
+                throw new RuntimeException("Invalid token signature");
+
+            JWTClaimsSet claims = jwt.getJWTClaimsSet();
+
+            if (!issuer.equals(claims.getIssuer()))
+                throw new RuntimeException("Invalid issuer");
+
+            if (claims.getExpirationTime().toInstant().isBefore(Instant.now()))
+                throw new RuntimeException("Verification token expired");
+
+            if (!"email_verification".equals(claims.getStringClaim("typ")))
+                throw new RuntimeException("Invalid verification token type");
+
+            return claims.getSubject(); // email
+
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid verification token");
+        }
     }
 
 }

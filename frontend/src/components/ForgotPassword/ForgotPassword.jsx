@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./ForgotPassword.css";
 import { toast, ToastContainer } from "react-toastify";
 import axios from "axios";
@@ -12,8 +12,32 @@ export default function ForgotPassword() {
     confirmNewPass: "",
   });
   const [otpSent, setOtpSent] = useState(false);
-
+  const [otpArr, setOtpArr] = useState(["", "", "", "", "", ""]);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [otpExpiryTimer, setOtpExpiryTimer] = useState(0);
   const navigate = useNavigate();
+
+  const handleOtpChange = (value, index) => {
+    if (!/^\d?$/.test(value)) return;
+
+    const newOtp = [...otpArr];
+    newOtp[index] = value;
+    setOtpArr(newOtp);
+
+    if (value && index < 5) {
+      document.getElementById(`otp-${index + 1}`).focus();
+    }
+  };
+
+  const handleOtpKeyDown = (e, index) => {
+    if (e.key === "Backspace" && !otpArr[index] && index > 0) {
+      document.getElementById(`otp-${index - 1}`).focus();
+    }
+  };
+
+  const fullOtp = otpArr.join("");
+
 
   const isFormValid = (e) => {
     if (
@@ -35,6 +59,27 @@ export default function ForgotPassword() {
     setFormData({ ...formData, [name]: value });
   };
 
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+
+    const i = setInterval(() => {
+      setResendTimer((t) => t - 1);
+    }, 1000);
+
+    return () => clearInterval(i);
+  }, [resendTimer]);
+
+  useEffect(() => {
+    if (otpExpiryTimer <= 0) return;
+
+    const i = setInterval(() => {
+      setOtpExpiryTimer((t) => t - 1);
+    }, 1000);
+
+    return () => clearInterval(i);
+  }, [otpExpiryTimer]);
+
+
   const handleSendOtp = async (e) => {
     e.preventDefault();
 
@@ -43,7 +88,11 @@ export default function ForgotPassword() {
       return;
     }
 
+    if (sendingOtp || resendTimer > 0) return;
+
     try {
+      setSendingOtp(true);
+
       const response = await axios.post(
         "http://localhost:8080/forgot-password/get-otp",
         { email: formData.email }
@@ -51,16 +100,20 @@ export default function ForgotPassword() {
       toast.success("📨 OTP sent successfully to your email!");
       console.log("OTP Response:", response.data);
       setOtpSent(true);
+      setResendTimer(60);
+      setOtpExpiryTimer(300);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send OTP");
       console.error("Error sending OTP:", error);
+    } finally {
+      setSendingOtp(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!/^\d{6}$/.test(formData.otp)) {
+    if (!/^\d{6}$/.test(fullOtp)) {
       toast.error("OTP must be exactly 6 digits");
       return;
     }
@@ -78,7 +131,7 @@ export default function ForgotPassword() {
         "http://localhost:8080/forgot-password/change-password",
         {
           email: formData.email,
-          otp: formData.otp,
+          otp: fullOtp,
           newPassword: formData.newPassword,
           confirmNewPass: formData.confirmNewPass,
         }
@@ -96,6 +149,14 @@ export default function ForgotPassword() {
     }
   };
 
+  useEffect(() => {
+    if (otpExpiryTimer === 0 && otpSent) {
+      setOtpArr(["", "", "", "", "", ""]);
+      toast.error("OTP expired. Please resend.");
+    }
+  }, [otpExpiryTimer, otpSent]);
+
+
   return (
     <>
       <div className="Forgot-pass-main">
@@ -109,26 +170,55 @@ export default function ForgotPassword() {
                 placeholder="Enter Your Email"
                 value={formData.email}
                 onChange={handleChange}
+                disabled={otpSent}
                 required
               />
               <button
+                type="button"
                 className="get-otp"
                 onClick={handleSendOtp}
+                disabled={sendingOtp || resendTimer > 0}
               >
-                Get OTP
+                {sendingOtp ? (
+                  <span className="spinner"></span>
+                ) : resendTimer > 0 ? (
+                  `Resend in ${resendTimer}s`
+                ) : otpSent ? (
+                  "Resend OTP"
+                ) : (
+                  "Send OTP"
+                )}
               </button>
             </div>
 
             {otpSent && (
               <>
-                <input
-                  type="number"
-                  name="otp"
-                  placeholder="Enter OTP"
-                  value={formData.otp}
-                  onChange={handleChange}
-                  required
-                />
+              <div className="otp-main">
+                <div className="otp-box-container">
+                  {otpArr.map((digit, i) => (
+                    <input
+                      key={i}
+                      id={`otp-${i}`}
+                      className="otp-box"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength="1"
+                      value={digit}
+                      onChange={(e) => handleOtpChange(e.target.value, i)}
+                      onKeyDown={(e) => handleOtpKeyDown(e, i)}
+                    />
+                  ))}
+                </div>
+
+                <p className="otp-timer">
+                  {otpExpiryTimer > 0
+                    ? `OTP expires in ${Math.floor(otpExpiryTimer / 60)}:${String(
+                      otpExpiryTimer % 60
+                    ).padStart(2, "0")}`
+                    : "OTP expired"}
+                </p>
+              </div>
+
                 <input
                   type="password"
                   name="newPassword"
